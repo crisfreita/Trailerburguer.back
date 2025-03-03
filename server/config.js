@@ -14,13 +14,13 @@ var config = {
     },
     prod: {
         url: 'http://www.trailerburguer.com.br/',
-        port: 21081,
+        port: 21024,
         ambiente: 'PROD', 
         database: {
             host: 'mysql.trailerburguer.com.br',
             port: 3306,
             user: 'trailerburguer',
-            password: '123sistema',
+            password: '311995Cr',
             database: 'trailerburguer',
             timezone: 'utc'
         },
