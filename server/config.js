@@ -17,7 +17,7 @@ var config = {
         port: 21137,
         ambiente: 'PROD', 
         database: {
-            host: '127.0.0.1',
+            host: 'mysql.trailerburguer.com.br',
             port: 3306,
             user: 'trailerburguer',
             password: 'trailer123',
