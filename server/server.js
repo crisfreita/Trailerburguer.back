@@ -1,4 +1,4 @@
-global.config = require('./config').get('prod');
+global.config = require('./config').get('dev');
 
 const restify = require("restify");
 const path = require("path");
@@ -38,7 +38,7 @@ server.use(
 )
 
 server.get('/public/*', restify.plugins.serveStatic({
-    directory: '../www/public'
+    directory: __dirname
 }))
 
 // Modifica o array de erro e mostra pro usuário uma mensagem personalizada

@@ -15,10 +15,10 @@ const controllers = () => {
         try {
             
             // obtem a imagem atual
-            var inStr = fs.createReadStream(`../www/public/images/${imagem}`);
+            var inStr = fs.createReadStream(`server/public/images/${imagem}`);
 
             // cria um "modelo" de imagem, com o ID na frente )passado nos parametros)
-            var outStr = fs.createWriteStream(`../www/public/images/${id}-${imagem}`);
+            var outStr = fs.createWriteStream(`server/public/images/${id}-${imagem}`);
 
             // aqui faz a cópia da imagem para o modelo, com o ID na frente para diferenciar
             inStr.pipe(outStr);
@@ -53,9 +53,7 @@ const controllers = () => {
 
             const extension = name[name.length - 1];
 
-            // muda pra `.../www/public ....` em todos os lugares que tiver `server/public ...`
-
-            const new_path = `../www/public/images/empresa/${name[0]}.${extension}`;
+            const new_path = `server/public/images/empresa/${name[0]}.${extension}`;
 
             mv(imagem.path, new_path, {
                 mkdirp: true // se não existir, cria o diretório
@@ -94,7 +92,7 @@ const controllers = () => {
 
             const imagem = req.body.imagem;
 
-            var filePath = `../www/public/images/empresa/${imagem}`;
+            var filePath = `server/public/images/empresa/${imagem}`;
             fs.unlinkSync(filePath);
 
             var ComandoSql = await readCommandSql.restornaStringSql('removerImagem', 'empresa');
@@ -131,7 +129,7 @@ const controllers = () => {
 
             const extension = name[name.length - 1];
 
-            const new_path = `../www/public/images/${idImagemNovo}-${name[0]}.${extension}`;
+            const new_path = `server/public/images/${idImagemNovo}-${name[0]}.${extension}`;
 
             mv(imagem.path, new_path, {
                 mkdirp: true // se não existir, cria o diretório
@@ -175,7 +173,7 @@ const controllers = () => {
                 }
             }
 
-            var filePath = `../www/public/images/${dados_produto[0].imagem}`;
+            var filePath = `server/public/images/${dados_produto[0].imagem}`;
             fs.unlinkSync(filePath);
 
             var ComandoSql = await readCommandSql.restornaStringSql('removerImagemProduto', 'produto');
