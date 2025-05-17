@@ -1,7 +1,7 @@
 const { server, restify, config } = require('./server/server');
 
 server.get('/*', restify.plugins.serveStatic({
-    directory: './client',
+    directory: './www',
     default: 'index.html'
 }));
 

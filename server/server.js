@@ -1,4 +1,4 @@
-global.config = require('./config').get('dev');
+global.config = require('./config').get('prod');
 
 const restify = require("restify");
 const path = require("path");
