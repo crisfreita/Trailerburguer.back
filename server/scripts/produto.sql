@@ -6,6 +6,7 @@ FROM
 	produto
 WHERE
 	apagado = 0
+    AND ativo = 1
 ORDER BY
 	-ordem DESC, idproduto ASC 
 
@@ -32,25 +33,26 @@ WHERE
 --INIT#obterPorCategoriaId#
 
 SELECT
-    p.idproduto
-	, p.nome
-    , p.descricao
-    , p.valor
-    , p.imagem
-    , p.ordem
-    , COUNT(op.idopcional) AS opcionais
+    p.idproduto,
+    p.nome,
+    p.descricao,
+    p.valor,
+    p.imagem,
+    p.ordem,
+    p.ativo,
+    COUNT(oi.idopcionalitem) AS opcionais
 FROM
-	produto AS p
+    produto AS p
     LEFT JOIN produtoopcional AS po ON po.idproduto = p.idproduto
-    LEFT JOIN opcional AS op ON op.idopcional = po.idopcional
-		AND op.apagado = 0
+    LEFT JOIN opcional AS op ON op.idopcional = po.idopcional AND op.apagado = 0
+    LEFT JOIN opcionalitem AS oi ON oi.idopcional = op.idopcional AND oi.apagado = 0
 WHERE
-	p.idcategoria = @idcategoria
+    p.idcategoria = @idcategoria
     AND p.apagado = 0
 GROUP BY
-	p.idproduto
+    p.idproduto
 ORDER BY
-	-p.ordem DESC, p.idproduto ASC 
+    -p.ordem DESC, p.idproduto ASC
 
 --END#obterPorCategoriaId#
 
@@ -210,3 +212,14 @@ WHERE
     idcategoria = @idcategoria
 
 --END#removerPorCategoriaId#
+
+--INIT#salvarOpcaoProdutoCheck#
+
+UPDATE
+	produto
+SET
+	ativo = @ativar
+WHERE
+	idproduto = @idproduto
+
+--END#salvarOpcaoProdutoCheck#

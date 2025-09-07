@@ -182,10 +182,35 @@ const controllers = () => {
         
     }
 
+    const salvarOpcionalItemCheck = async (req) => {
+      try {
+        const { idopcionalitem, ativar } = req.body;
+
+        if (!idopcionalitem || ativar === undefined) {
+            return { status: 'error', message: 'ID ou estado inválido.' };
+        }
+
+        const ComandoSql = "UPDATE opcionalitem SET ativo = @ativar WHERE idopcionalitem = @idopcionalitem";
+        await db.Query(ComandoSql, { idopcionalitem, ativar: ativar ? 1 : 0 });
+
+        return {
+            status: 'success',
+            message: ativar ? 'Item ativado com sucesso.' : 'Item desativado com sucesso.',
+        };
+        } catch (error) {
+        console.error('Erro ao alterar item opcional:', error);
+        return {
+            status: 'error',
+            message: 'Falha ao atualizar o estado do item opcional.',
+        };
+        }
+    }
+
     return Object.create({
         obterOpcionaisProduto
         , removerOpcionalItem
         , salvarOpcionaisProduto
+        , salvarOpcionalItemCheck
     })
 
 }

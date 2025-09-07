@@ -19,4 +19,9 @@ module.exports = (server) => {
         res.send(result);
     })
 
+    server.post('/opcionalitem/ativar', Acesso.verificaTokenAcesso, async (req, res) => {
+       const result = await ct.controllers().salvarOpcionalItemCheck(req);
+       res.send(result);
+    })
+
 }

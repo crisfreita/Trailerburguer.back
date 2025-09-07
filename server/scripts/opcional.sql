@@ -9,6 +9,7 @@ SELECT
     , o.maximo
     , oi.nome AS nomeopcional
     , oi.valor AS valoropcional
+    , oi.ativo as ativo
 FROM
 	produtoopcional AS po
     JOIN opcional AS o ON o.idopcional = po.idopcional
@@ -74,3 +75,8 @@ VALUES
 
 --END#adicionarOpcionalProduto#
 
+-- INIT#salvarOpcionalItemCheck#
+UPDATE opcionalitem
+SET ativo = @ativar
+WHERE idopcionalitem = @idopcionalitem;
+-- END#salvarOpcionalItemCheck#

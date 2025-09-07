@@ -2,113 +2,219 @@ const AcessoDados = require('../db/acessodados');
 const db = new AcessoDados();
 const ReadCommandSql = require('../common/readCommandSql');
 const readCommandSql = new ReadCommandSql();
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
-// CHAVE API KEY - Geoapify
-const key = 'SUA_CHAVE';
+
+// CHAVE API KEY
+const key = 'AIzaSyBeqAHQL5djcTkZgtJuCa24jJSnkTiDby8';
 
 const controllers = () => {
 
-    // obtem a rota (lat, long) e calcula a taxa do delivery por km
     const calcularTaxaDelivery = async (req) => {
-        
         try {
-
-            // primeiro: obtem a lat e long do endereco da empresa
+            // Obtem a latitude e longitude do endereço da empresa
             var ComandoSql = await readCommandSql.restornaStringSql('obterDadosCompletos', 'empresa');
             var empresa = await db.Query(ComandoSql);
-
-            const enderecoEmpresa = `${empresa[0].endereco}, ${empresa[0].numero}, ${empresa[0].bairro}, ${empresa[0].cidade}-${empresa[0].estado}, ${empresa[0].cep}`
+    
+            const enderecoEmpresa = `${empresa[0].endereco}, ${empresa[0].numero}, ${empresa[0].bairro}, ${empresa[0].cidade}-${empresa[0].estado}, ${empresa[0].cep}`;
             const urlEncodeEmpresa = encodeURI(enderecoEmpresa);
-
-            const urlEmpresa = `https://api.geoapify.com/v1/geocode/search?text=${urlEncodeEmpresa}&apiKey=${key}`;
+    
+            // Usa a Geocoding API do Google Maps para obter lat e long da empresa
+           const urlEmpresa = `https://maps.googleapis.com/maps/api/geocode/json?address=${urlEncodeEmpresa}&key=${key}`;
             const responseEmpresa = await fetch(urlEmpresa);
             const responseJsonEmpresa = await responseEmpresa.json();
-
+    
             console.log('responseJsonEmpresa', responseJsonEmpresa);
+    
+            if (!responseJsonEmpresa.results || responseJsonEmpresa.results.length === 0) {
+            throw new Error('Endereço da empresa não encontrado no Google Maps');
+            }
+            const empresaLocation = responseJsonEmpresa.results[0].geometry.location;
 
-            
-            // segundo: obtem a lat e long do endereco do cliente
-            const endereco = req.body.endereco;
-            const urlEncode = encodeURI(endereco);
+    
+            // Obtem a latitude e longitude do endereço do cliente
+         const endereco = req.body.endereco;
+           const urlEncode = encodeURI(endereco);
+    
+         const urlCliente = `https://maps.googleapis.com/maps/api/geocode/json?address=${urlEncode}&key=${key}`;
+         const responseCliente = await fetch(urlCliente);
+            const responseJsonCliente = await responseCliente.json();
+    
+            console.log('responseJson - cliente', responseJsonCliente);
+    
+            if (!responseJsonCliente.results || responseJsonCliente.results.length === 0) {
+            throw new Error('Endereço do cliente não encontrado no Google Maps');
+            }
+           const clienteLocation = responseJsonCliente.results[0].geometry.location;
 
-            const url = `https://api.geoapify.com/v1/geocode/search?text=${urlEncode}&apiKey=${key}`;
-            const response = await fetch(url);
-            const responseJson = await response.json();
-
-            console.log('responseJson - cliente', responseJson);
-
-
-            // Agora calcula a distancia entre a empresa e o cliente
+    
+            // Calcula a distância entre a empresa e o cliente usando a Directions API
             const distancia = await calcularDistancia(
-                responseJson.features[0].properties.lat, 
-                responseJson.features[0].properties.lon,
-                responseJsonEmpresa.features[0].properties.lat,
-                responseJsonEmpresa.features[0].properties.lon
-            )
-
-            if (distancia.status == 'error') {
+               clienteLocation.lat, 
+               clienteLocation.lng, 
+               empresaLocation.lat, 
+               empresaLocation.lng
+            );
+    
+           if (distancia.status == 'error') {
                 return distancia;
             }
-
-            // calcula a distancia em KM (a distancia vem em metros da api geoapify)
-            const distanciaKm = (distancia.data.features[0].properties.distance) / 1000;
-
+    
+            const distanciaKm = distancia.data.rows[0].elements[0].distance.value / 1000;
+    
             console.log('distanciaKm', distanciaKm);
-
-            // obtem qual taxa é mais adequada para essa distancia
+    
+            // Obtem a taxa de entrega baseada na distância calculada
             var ComandoSqlTaxa = await readCommandSql.restornaStringSql('obterValorTaxaPorKm', 'entrega');
             var taxas = await db.Query(ComandoSqlTaxa, { distancia: distanciaKm });
-
+    
             if (taxas.length > 0) {
-                return {
+               return {
                     status: 'success',
                     taxa: taxas[0].valor,
                     idtaxa: taxas[0].idtaxaentrega
-                }
-            }
-            else {
-                return {
-                    status: 'success',
+                };
+            } else {
+               return {
+                   status: 'success',
                     taxa: 0,
-                    idtaxa: null
-                }
+                    idtaxa: null          
+              };
             }
-
-        } catch (error) {
-            console.log(error);
-            return {
+    
+       } catch (error) {
+           console.log(error);
+           return {
                 status: 'error',
-                message: 'Falha ao obter dados do produto.'
-            }
+               message: 'Falha ao obter dados do produto.'
+            };
         }
-        
-    }
-
-    // obtem a distancia entre a loja e o endereço
+    };
+    
+    // Função para calcular a distância entre a empresa e o cliente usando a Google Maps Directions API
     const calcularDistancia = async (lat, lon, latLoja, lonLoja) => {
-
         try {
-
-            const url = `https://api.geoapify.com/v1/routing?waypoints=${latLoja},${lonLoja}|${lat},${lon}&mode=drive&apiKey=${key}`;
-            const response = await fetch(url);
+            const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latLoja},${lonLoja}&destinations=${lat},${lon}&mode=driving&key=${key}`;
+          const response = await fetch(url);
             const responseJson = await response.json();
-
-            return {
-                status: 'success',
-                data: responseJson
-            }
-
+    
+          return {
+              status: 'success',
+              data: responseJson
+            };
+    
         } catch (error) {
-            console.log(error);
+           console.log(error);
             return {
-                status: 'error',
+               status: 'error',
                 message: 'Falha ao obter localização. Por favor, selecione outro endereço ou altere o atual.',
                 ex: error
-            }
+           };
         }
+   };   
 
-    }
+
+
+
+    // obtem a rota (lat, long) e calcula a taxa do delivery por km
+ //   const calcularTaxaDelivery = async (req) => {
+        
+ //       try {
+
+            // primeiro: obtem a lat e long do endereco da empresa
+ //           var ComandoSql = await readCommandSql.restornaStringSql('obterDadosCompletos', 'empresa');
+ //           var empresa = await db.Query(ComandoSql);
+
+ //          const enderecoEmpresa = `${empresa[0].endereco}, ${empresa[0].numero}, ${empresa[0].bairro}, ${empresa[0].cidade}-${empresa[0].estado}, ${empresa[0].cep}`
+ //          const urlEncodeEmpresa = encodeURI(enderecoEmpresa);
+
+ //           const urlEmpresa = `https://api.geoapify.com/v1/geocode/search?text=${urlEncodeEmpresa}&apiKey=${key}`;
+ //           const responseEmpresa = await fetch(urlEmpresa);
+ //           const responseJsonEmpresa = await responseEmpresa.json();
+
+//            console.log('responseJsonEmpresa', responseJsonEmpresa);
+
+            
+            // segundo: obtem a lat e long do endereco do cliente
+ //           const endereco = req.body.endereco;
+///           const urlEncode = encodeURI(endereco);
+
+//            const url = `https://api.geoapify.com/v1/geocode/search?text=${urlEncode}&apiKey=${key}`;
+//            const response = await fetch(url);
+//          const responseJson = await response.json();
+
+//         console.log('responseJson - cliente', responseJson);
+
+
+            // Agora calcula a distancia entre a empresa e o cliente
+//m          const distancia = await calcularDistancia(
+ //                responseJson.features[0].properties.lat, 
+ //              responseJson.features[0].properties.lon,
+ //           responseJsonEmpresa.features[0].properties.lat,
+ //             responseJsonEmpresa.features[0].properties.lon
+ //          )
+
+ //           if (distancia.status == 'error') {
+ //               return distancia;
+ //          }
+
+            // calcula a distancia em KM (a distancia vem em metros da api geoapify)
+//            const distanciaKm = (distancia.data.features[0].properties.distance) / 1000;
+
+//            console.log('distanciaKm', distanciaKm);
+
+            // obtem qual taxa é mais adequada para essa distancia
+//            var ComandoSqlTaxa = await readCommandSql.restornaStringSql('obterValorTaxaPorKm', 'entrega');
+//            var taxas = await db.Query(ComandoSqlTaxa, { distancia: distanciaKm });
+//
+ //           if (taxas.length > 0) {
+//               return {
+ //                   status: 'success',
+ //                   taxa: taxas[0].valor,
+ //                   idtaxa: taxas[0].idtaxaentrega
+ //              }
+ ////          }
+ //           else {
+ //              return {
+ //                   status: 'success',
+ //                   taxa: 0,
+ //                   idtaxa: null
+ //            }
+ //          }
+
+//        } catch (error) {
+ //           console.log(error);
+ //           return {
+ //             status: 'error',
+ //               message: 'Falha ao obter dados do produto.'
+ //          }
+ //      }
+        
+ //   }
+
+    // obtem a distancia entre a loja e o endereço
+//   const calcularDistancia = async (lat, lon, latLoja, lonLoja) => {
+
+ //      try {
+
+ //         const url = `https://api.geoapify.com/v1/routing?waypoints=${latLoja},${lonLoja}|${lat},${lon}&mode=drive&apiKey=${key}`;
+ //          const response = await fetch(url);
+ //          const responseJson = await response.json();
+
+ //          return {
+ //               status: 'success',
+ //               data: responseJson
+ //           }
+ //       } catch (error) {
+ //          console.log(error);
+ //           return {
+ //               status: 'error',
+ //               message: 'Falha ao obter localização. Por favor, selecione outro endereço ou altere o atual.',
+ //               ex: error
+ //           }
+ //      }
+///
+ //   }
 
     const salvarPedido = async (req) => {
         
@@ -212,8 +318,7 @@ const controllers = () => {
                 return {
                     status: 'success',
                     message: 'Pedido realizado!',
-                    order: hash
-                }
+                    order: hash                }
 
             }
 
@@ -231,6 +336,8 @@ const controllers = () => {
             }
         }
     }
+
+    
 
     const obterPedidoPorId = async (req) => {
 

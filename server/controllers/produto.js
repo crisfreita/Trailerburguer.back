@@ -56,28 +56,26 @@ const controllers = () => {
     }
 
     const obterPorCategoriaId = async (req) => {
-        
-        try {
-
-            const id = req.params.id;
+      try {
+           const id = req.params.id;
 
             var ComandoSql = await readCommandSql.restornaStringSql('obterPorCategoriaId', 'produto');
             var result = await db.Query(ComandoSql, { idcategoria: id });
 
-            return {
-                status: 'success',
-                data: result
-            }
-            
-        } catch (error) {
-            console.log(error);
-            return {
-                status: 'error',
-                message: 'Falha ao obter os produtos.'
-            }
-        }
+           return {
+             status: 'success',
+             data: result
+         };
         
+      } catch (error) {
+          console.log(error);
+          return {
+              status: 'error',
+              message: 'Falha ao obter os produtos.'
+         };
+      }
     }
+
 
     const ordenarProdutos = async (req) => {
         
@@ -267,6 +265,37 @@ const controllers = () => {
         }
         
     }
+
+    const salvarOpcaoProdutoCheck = async (req) => {
+        
+        try {
+            const { idproduto, ativar } = req.body;
+    
+            if (!idproduto || ativar === undefined) {
+                return {
+                    status: 'error',
+                    message: 'ID do produto ou estado inválido.',
+                };
+            }
+    
+            // Atualiza o status do produto (ativo ou inativo)
+            const ComandoSql = await readCommandSql.restornaStringSql('salvarOpcaoProdutoCheck', 'produto');
+            await db.Query(ComandoSql, { idproduto, ativar: ativar ? 1 : 0 });
+    
+            const mensagem = ativar ? 'Produto ativado com sucesso.' : 'Produto desativado com sucesso.';
+    
+            return {
+                status: 'success',
+                message: mensagem,
+            };
+        } catch (error) {
+            console.error('Erro ao ativar/desativar produto:', error);
+            return {
+                status: 'error',
+                message: 'Falha ao atualizar o estado do produto. Tente novamente.',
+            };
+        }
+    }
     
 
     return Object.create({
@@ -277,6 +306,7 @@ const controllers = () => {
         , salvarDados
         , removerProduto
         , duplicarProduto
+        , salvarOpcaoProdutoCheck
     })
 
 }

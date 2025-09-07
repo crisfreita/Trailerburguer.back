@@ -49,4 +49,10 @@ module.exports = (server) => {
         res.send(result);
     })
 
+    // desativar e ativar o produto
+    server.post('/produto/ativar', Acesso.verificaTokenAcesso, async (req, res) => {
+        const result = await ct.controllers().salvarOpcaoProdutoCheck(req);
+        res.send(result);
+    })
+
 }
