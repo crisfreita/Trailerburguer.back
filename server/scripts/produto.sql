@@ -1,14 +1,23 @@
 --INIT#listaCardapio#
 
 SELECT
-    *
+    idproduto,
+    nome,
+    descricao,
+    valor,
+    imagem,
+    ativo,
+    idcategoria,
+    ordem,
+    apagado
 FROM
-	produto
+    produto
 WHERE
-	apagado = 0
-    AND ativo = 1
+    apagado = 0
 ORDER BY
-	-ordem DESC, idproduto ASC 
+    ativo DESC,         -- primeiro os ativos (1), depois os desativados (0)
+    -ordem DESC,
+    idproduto ASC;
 
 --END#listaCardapio#
 
