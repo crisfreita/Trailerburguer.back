@@ -185,7 +185,7 @@ const controllers = () => {
         payment_method_id: "pix",
         payer: {
           // Estes dados simulam um pagamento aprovado automaticamente
-          email: "TESTUSER1466604184081682256",
+          email: "TEST-USER-123456@testuser.com",
           first_name: "APRO", // 👈 gatilho de aprovação automática
           last_name: "TESTE",
           identification: {
