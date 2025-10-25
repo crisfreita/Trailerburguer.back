@@ -180,6 +180,36 @@ const controllers = () => {
     }
   };
 
+  // 🔹 Consulta de status chamada pelo webhook
+  const verificarStatusPix = async (paymentId) => {
+    try {
+      const client = new MercadoPagoConfig({
+        accessToken: process.env.MP_ACCESS_TOKEN,
+      });
+      const payment = new Payment(client);
+      const result = await payment.get({ id: paymentId });
+
+      console.log("📩 Status PIX atualizado:", result.status);
+
+      await db.Query("UPDATE pagamento SET status = ? WHERE id_mp = ?", [
+        result.status,
+        paymentId,
+      ]);
+
+      if (result.status === "approved") {
+        await db.Query(
+          `UPDATE pedido
+         SET idpedidostatus = 3
+         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = ?)`,
+          [paymentId]
+        );
+        console.log("✅ Pedido atualizado como pago:", paymentId);
+      }
+    } catch (error) {
+      console.log("❌ Erro ao verificar status PIX:", error);
+    }
+  };
+
   // ==============================
   // 💾 SALVAR PAGAMENTO
   // ==============================
@@ -323,6 +353,7 @@ const controllers = () => {
     pagarComCartao,
     pagarComPix,
     salvarPagamento,
+    verificarStatusPix,
   });
 };
 

@@ -14,4 +14,22 @@ module.exports = (server) => {
     const result = await ct.controllers().pagar(req);
     res.send(result);
   });
+
+  // Notificação PIX (webhook Mercado Pago)
+  server.post("/pagamento/notificacao", async (req, res) => {
+    try {
+      console.log("🔔 Notificação PIX recebida:", req.body);
+
+      // Mercado Pago envia: { "action": "payment.updated", "data": { "id": "1234567890" } }
+      if (req.body && req.body.data && req.body.data.id) {
+        const paymentId = req.body.data.id;
+        await ct.controllers().verificarStatusPix(paymentId);
+      }
+
+      res.sendStatus(200); // responde OK para o Mercado Pago
+    } catch (error) {
+      console.log("❌ Erro webhook PIX:", error);
+      res.sendStatus(500);
+    }
+  });
 };
