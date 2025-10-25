@@ -119,24 +119,83 @@ const controllers = () => {
   // ==============================
   // ⚡ PAGAR COM PIX
   // ==============================
+  // const pagarComPix = async (dados, payment, idempotencyKey) => {
+  //  try {
+  //    const empresa = await ctEmpresa.controllers().obterDados();
+  //    let retorno = {};
+  //    let paymentOrder = null;
+
+  //    const body = {
+  //      transaction_amount: dados.pedido.total,
+  //       description: "Pagamento via PIX - " + empresa.data[0].nome,
+  //      payment_method_id: "pix",
+  //      payer: {
+  //        email: dados.formData.payer.email,
+  //        first_name: dados.formData.payer.first_name,
+  //       last_name: dados.formData.payer.last_name,
+  //       identification: dados.formData.payer.identification,
+  //     },
+  //   };
+
+  //   const resultado = await payment.create({
+  //      body,
+  //      requestOptions: { idempotencyKey },
+  //    });
+  //
+  //   paymentOrder = resultado;
+
+  // Salva o pagamento no banco
+  //   await salvarPagamento(dados, paymentOrder);
+
+  // Retorna dados necessários pro frontend exibir o QR Code
+  //   retorno = {
+  //      status: "success",
+  //     id_mp: resultado.id,
+  //     status_mp: resultado.status,
+  //    message: "Pagamento PIX criado com sucesso!",
+  //     qr_code_base64:
+  //       resultado.point_of_interaction.transaction_data.qr_code_base64,
+  //    qr_code_text: resultado.point_of_interaction.transaction_data.qr_code,
+  //   ticket_url: resultado.point_of_interaction.transaction_data.ticket_url,
+  // };
+
+  //    return retorno;
+  //   } catch (error) {
+  //     console.log("Erro PIX", error);
+  //     return {
+  //       status: "error",
+  //      message: "Falha ao realizar pagamento PIX.",
+  //      error: error.message,
+  //    };
+  //  }
+  // };
+
   const pagarComPix = async (dados, payment, idempotencyKey) => {
     try {
       const empresa = await ctEmpresa.controllers().obterDados();
       let retorno = {};
       let paymentOrder = null;
 
+      // ⚙️ Aqui forçamos dados de teste (sandbox)
+      const totalCarrinho = dados.pedido.total || 1;
+
       const body = {
-        transaction_amount: dados.pedido.total,
+        transaction_amount: totalCarrinho,
         description: "Pagamento via PIX - " + empresa.data[0].nome,
         payment_method_id: "pix",
         payer: {
-          email: dados.formData.payer.email,
-          first_name: dados.formData.payer.first_name,
-          last_name: dados.formData.payer.last_name,
-          identification: dados.formData.payer.identification,
+          // Estes dados simulam um pagamento aprovado automaticamente
+          email: "teste@mercadopago.com",
+          first_name: "APRO", // 👈 gatilho de aprovação automática
+          last_name: "TESTE",
+          identification: {
+            type: "CPF",
+            number: "12345678909",
+          },
         },
       };
 
+      // 🔗 Criação do pagamento PIX
       const resultado = await payment.create({
         body,
         requestOptions: { idempotencyKey },
@@ -144,10 +203,10 @@ const controllers = () => {
 
       paymentOrder = resultado;
 
-      // Salva o pagamento no banco
+      // 💾 Salva o pagamento no banco
       await salvarPagamento(dados, paymentOrder);
 
-      // Retorna dados necessários pro frontend exibir o QR Code
+      // 📲 Retorna dados para exibir QR Code e status
       retorno = {
         status: "success",
         id_mp: resultado.id,
@@ -159,9 +218,10 @@ const controllers = () => {
         ticket_url: resultado.point_of_interaction.transaction_data.ticket_url,
       };
 
+      console.log("✅ PIX de teste criado:", resultado.status);
       return retorno;
     } catch (error) {
-      console.log("Erro PIX", error);
+      console.log("❌ Erro PIX:", error);
       return {
         status: "error",
         message: "Falha ao realizar pagamento PIX.",
