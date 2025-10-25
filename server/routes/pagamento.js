@@ -16,7 +16,7 @@ module.exports = (server) => {
   });
 
   // Notificação PIX (webhook Mercado Pago)
-  server.post("/pagamento/notificacao", async (req, res, next) => {
+  server.post("/pagamento/notificacao", async (req, res) => {
     try {
       console.log("🔔 Notificação PIX recebida:", req.body);
 
@@ -25,12 +25,10 @@ module.exports = (server) => {
         await ct.controllers().verificarStatusPix(paymentId);
       }
 
-      res.send(200, { message: "OK" }); // resposta válida pro Restify
-      return next();
+      res.send(200, { message: "OK" });
     } catch (error) {
       console.log("❌ Erro webhook PIX:", error);
       res.send(500, { message: "Erro interno" });
-      return next();
     }
   });
 };
