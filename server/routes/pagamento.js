@@ -16,20 +16,21 @@ module.exports = (server) => {
   });
 
   // Notificação PIX (webhook Mercado Pago)
-  server.post("/pagamento/notificacao", async (req, res) => {
+  server.post("/pagamento/notificacao", async (req, res, next) => {
     try {
       console.log("🔔 Notificação PIX recebida:", req.body);
 
-      // Mercado Pago envia: { "action": "payment.updated", "data": { "id": "1234567890" } }
       if (req.body && req.body.data && req.body.data.id) {
         const paymentId = req.body.data.id;
         await ct.controllers().verificarStatusPix(paymentId);
       }
 
-      return res.status(200).send("OK"); // ✅ resposta correta
+      res.send(200, { message: "OK" }); // resposta válida pro Restify
+      return next();
     } catch (error) {
       console.log("❌ Erro webhook PIX:", error);
-      return res.status(500).send("Erro interno"); // ✅ resposta de erro segura
+      res.send(500, { message: "Erro interno" });
+      return next();
     }
   });
 };
