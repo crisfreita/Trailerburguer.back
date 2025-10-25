@@ -40,8 +40,7 @@ server.use(function nocache(req, res, next) {
   next();
 });
 
-// ✅ Adiciona suporte global a preflight (OPTIONS) para evitar erro 405
-server.opts(/.*/, function (req, res, next) {
+server.opts("*", function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
