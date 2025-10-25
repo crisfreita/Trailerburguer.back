@@ -26,10 +26,10 @@ module.exports = (server) => {
         await ct.controllers().verificarStatusPix(paymentId);
       }
 
-      res.sendStatus(200); // responde OK para o Mercado Pago
+      return res.status(200).send("OK"); // ✅ resposta correta
     } catch (error) {
       console.log("❌ Erro webhook PIX:", error);
-      res.sendStatus(500);
+      return res.status(500).send("Erro interno"); // ✅ resposta de erro segura
     }
   });
 };
