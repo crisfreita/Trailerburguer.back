@@ -183,19 +183,35 @@ const controllers = () => {
   // 🔹 Consulta de status chamada pelo webhook
   const verificarStatusPix = async (paymentId) => {
     try {
-      const client = new MercadoPagoConfig({
-        accessToken: process.env.MP_ACCESS_TOKEN,
-      });
+      // 🔹 Busca Access Token do banco, igual no método pagar()
+      const ComandoSqlAccessToken = await readCommandSql.restornaStringSql(
+        "obterAccessToken",
+        "pagamento"
+      );
+      const resultToken = await db.Query(ComandoSqlAccessToken);
+
+      if (resultToken.length === 0) {
+        throw new Error("Access Token não encontrado no banco");
+      }
+
+      const accessToken = resultToken[0].accesstoken;
+
+      // 🔹 Inicializa o cliente Mercado Pago
+      const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
+
+      // 🔹 Consulta status do pagamento PIX
       const result = await payment.get({ id: paymentId });
 
       console.log("📩 Status PIX atualizado:", result.status);
 
+      // 🔹 Atualiza o status no banco
       await db.Query("UPDATE pagamento SET status = ? WHERE id_mp = ?", [
         result.status,
         paymentId,
       ]);
 
+      // 🔹 Se aprovado, marca o pedido como pago
       if (result.status === "approved") {
         await db.Query(
           `UPDATE pedido
@@ -204,6 +220,16 @@ const controllers = () => {
           [paymentId]
         );
         console.log("✅ Pedido atualizado como pago:", paymentId);
+      } else if (result.status === "rejected") {
+        await db.Query(
+          `UPDATE pedido
+         SET idpedidostatus = 6
+         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = ?)`,
+          [paymentId]
+        );
+        console.log("❌ Pagamento PIX recusado:", paymentId);
+      } else {
+        console.log("⏳ Pagamento ainda pendente:", paymentId);
       }
     } catch (error) {
       console.log("❌ Erro ao verificar status PIX:", error);
