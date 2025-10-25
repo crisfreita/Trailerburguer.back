@@ -125,15 +125,25 @@ const controllers = () => {
       let retorno = {};
       let paymentOrder = null;
 
+      // garante que o e-mail e cpf são válidos
+      const emailValido = dados.formData?.payer?.email || "cliente@dominio.com";
+      const nomeValido = dados.formData?.payer?.first_name || "Cliente";
+      const sobrenomeValido = dados.formData?.payer?.last_name || "";
+      const cpfValido =
+        dados.formData?.payer?.identification?.number || "00000000191";
+
       const body = {
-        transaction_amount: dados.pedido.total,
+        transaction_amount: Number(dados.pedido.total),
         description: "Pagamento via PIX - " + empresa.data[0].nome,
         payment_method_id: "pix",
         payer: {
-          email: dados.formData.payer.email,
-          first_name: dados.formData.payer.first_name,
-          last_name: dados.formData.payer.last_name,
-          identification: dados.formData.payer.identification,
+          email: emailValido, // ✅ e-mail real
+          first_name: nomeValido,
+          last_name: sobrenomeValido,
+          identification: {
+            type: "CPF",
+            number: cpfValido, // ✅ CPF real
+          },
         },
       };
 
@@ -144,10 +154,10 @@ const controllers = () => {
 
       paymentOrder = resultado;
 
-      // Salva o pagamento no banco
+      // 💾 Salva o pagamento
       await salvarPagamento(dados, paymentOrder);
 
-      // Retorna dados necessários pro frontend exibir o QR Code
+      // 🔁 Retorna dados do QR Code
       retorno = {
         status: "success",
         id_mp: resultado.id,
@@ -159,13 +169,13 @@ const controllers = () => {
         ticket_url: resultado.point_of_interaction.transaction_data.ticket_url,
       };
 
+      console.log("✅ PIX criado com sucesso:", resultado.status);
       return retorno;
     } catch (error) {
-      console.log("Erro PIX", error);
+      console.log("❌ Erro PIX:", error);
       return {
         status: "error",
-        message: "Falha ao realizar pagamento PIX.",
-        error: error.message,
+        message: error.message,
       };
     }
   };
