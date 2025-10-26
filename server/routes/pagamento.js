@@ -31,4 +31,27 @@ module.exports = (server) => {
       res.send(500, { message: "Erro interno" });
     }
   });
+
+  // 🔹 Nova rota: Verifica manualmente o status do pagamento
+  server.get("/pagamento/status/:id", async (req, res) => {
+    try {
+      const paymentId = req.params.id;
+      console.log("🔎 Consulta manual de status PIX:", paymentId);
+
+      const result = await ct.controllers().verificarStatusPix(paymentId);
+
+      // caso o controller não retorne nada
+      if (!result) {
+        return res.send(404, {
+          status: "error",
+          message: "Pagamento não encontrado",
+        });
+      }
+
+      res.send(200, { status: "success", payment_status: result.status });
+    } catch (error) {
+      console.log("❌ Erro ao consultar status PIX:", error);
+      res.send(500, { status: "error", message: "Falha ao consultar status" });
+    }
+  });
 };

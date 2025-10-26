@@ -183,7 +183,7 @@ const controllers = () => {
   // 🔹 Consulta de status chamada pelo webhook
   const verificarStatusPix = async (paymentId) => {
     try {
-      // 🔹 Busca Access Token do banco, igual no método pagar()
+      // 🔹 Busca o Access Token do banco (mesmo método usado em pagar())
       const ComandoSqlAccessToken = await readCommandSql.restornaStringSql(
         "obterAccessToken",
         "pagamento"
@@ -200,18 +200,18 @@ const controllers = () => {
       const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
 
-      // 🔹 Consulta status do pagamento PIX
+      // 🔹 Consulta status do pagamento direto no MP
       const result = await payment.get({ id: paymentId });
 
       console.log("📩 Status PIX atualizado:", result.status);
 
-      // 🔹 Atualiza o status no banco
-      await db.Query("UPDATE pagamento SET status = ? WHERE id_mp = ?", [
-        result.status,
-        paymentId,
-      ]);
+      // 🔹 Atualiza status no banco
+      await db.Query(
+        "UPDATE pagamento SET status = ?, date_last_updated = NOW() WHERE id_mp = ?",
+        [result.status, paymentId]
+      );
 
-      // 🔹 Se aprovado, marca o pedido como pago
+      // 🔹 Atualiza o pedido conforme o status
       if (result.status === "approved") {
         await db.Query(
           `UPDATE pedido
@@ -231,8 +231,17 @@ const controllers = () => {
       } else {
         console.log("⏳ Pagamento ainda pendente:", paymentId);
       }
+
+      // 🔹 Retorna o resultado para quem chamou (rota ou webhook)
+      return {
+        status: result.status,
+        status_detail: result.status_detail,
+        id: paymentId,
+        date_approved: result.date_approved || null,
+      };
     } catch (error) {
       console.log("❌ Erro ao verificar status PIX:", error);
+      return { status: "error", message: error.message };
     }
   };
 
