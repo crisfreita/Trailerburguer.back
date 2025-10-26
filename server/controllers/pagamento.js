@@ -208,8 +208,8 @@ const controllers = () => {
       // 🔹 Atualiza status no banco
       await db.Query(
         `UPDATE pagamento 
-   SET status = @status, date_last_updated = NOW() 
-   WHERE id_mp = @id_mp`,
+       SET status = @status, date_last_updated = NOW() 
+       WHERE id_mp = @id_mp`,
         {
           status: result.status,
           id_mp: paymentId,
@@ -221,16 +221,16 @@ const controllers = () => {
         await db.Query(
           `UPDATE pedido
          SET idpedidostatus = 3
-         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = ?)`,
-          [paymentId]
+         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
+          { id_mp: paymentId }
         );
         console.log("✅ Pedido atualizado como pago:", paymentId);
       } else if (result.status === "rejected") {
         await db.Query(
           `UPDATE pedido
          SET idpedidostatus = 6
-         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = ?)`,
-          [paymentId]
+         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
+          { id_mp: paymentId }
         );
         console.log("❌ Pagamento PIX recusado:", paymentId);
       } else {
