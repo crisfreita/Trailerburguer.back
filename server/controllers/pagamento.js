@@ -207,8 +207,13 @@ const controllers = () => {
 
       // 🔹 Atualiza status no banco
       await db.Query(
-        "UPDATE pagamento SET status = ?, date_last_updated = NOW() WHERE id_mp = ?",
-        [result.status, paymentId]
+        `UPDATE pagamento 
+   SET status = @status, date_last_updated = NOW() 
+   WHERE id_mp = @id_mp`,
+        {
+          status: result.status,
+          id_mp: paymentId,
+        }
       );
 
       // 🔹 Atualiza o pedido conforme o status
