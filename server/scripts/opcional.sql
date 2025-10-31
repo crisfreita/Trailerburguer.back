@@ -1,25 +1,33 @@
 --INIT#obterPorProdutoId#
 
 SELECT
-	o.idopcional
-    , oi.idopcionalitem
-    , o.nome AS titulo
-    , o.tiposimples
-    , o.minimo
-    , o.maximo
-    , oi.nome AS nomeopcional
-    , oi.valor AS valoropcional
-    , oi.ativo as ativo
+    o.idopcional,
+    oi.idopcionalitem,
+    o.nome AS titulo,
+    o.tiposimples,
+    o.minimo,
+    o.maximo,
+    oi.nome AS nomeopcional,
+    oi.valor AS valoropcional,
+    oi.ativo AS ativo,
+    oi.ordem AS ordem
 FROM
-	produtoopcional AS po
-    JOIN opcional AS o ON o.idopcional = po.idopcional
-		AND o.apagado = 0
-	RIGHT JOIN opcionalitem AS oi ON oi.idopcional = po.idopcional
-		AND oi.apagado = 0
+    produtoopcional AS po
+    INNER JOIN opcional AS o
+        ON o.idopcional = po.idopcional
+        AND o.apagado = 0
+    INNER JOIN opcionalitem AS oi
+        ON oi.idopcional = po.idopcional
+        AND oi.apagado = 0
 WHERE
-	po.idproduto = @idproduto
+    po.idproduto = @idproduto
+ORDER BY
+    o.idopcional ASC,
+    oi.ordem ASC,
+    oi.idopcionalitem ASC;
 
 --END#obterPorProdutoId#
+
 
 
 --INIT#removerOpcionalItem#
@@ -59,9 +67,9 @@ VALUES
 
 --INIT#adicionarOpcionalItem#
 INSERT INTO opcionalitem
-(idopcional, nome, valor, ativo, apagado)
+(idopcional, nome, valor, ativo, apagado, ordem)
 VALUES
-(@idopcional, @nome, @valor, 1, 0)
+(@idopcional, @nome, @valor, 1, 0, @ordem)
 --END#adicionarOpcionalItem#
 
 
@@ -88,6 +96,7 @@ WHERE idopcionalitem = @idopcionalitem;
 UPDATE opcionalitem
 SET nome = @nome,
     valor = @valor
+    ordem = @ordem
 WHERE idopcionalitem = @idopcionalitem
 
 --END#atualizarOpcionalItem#

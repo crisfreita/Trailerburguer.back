@@ -54,6 +54,7 @@ const controllers = () => {
             "atualizarOpcionalItem",
             "opcional"
           );
+          req.body.ordem = 1; // mantém padrão
           await db.Query(ComandoUpdate, req.body);
           return {
             status: "success",
@@ -61,6 +62,7 @@ const controllers = () => {
           };
         }
 
+        // Criar novo opcional simples
         if (!result || result.length === 0) {
           const ComandoSqlAddOpcional = await readCommandSql.restornaStringSql(
             "adicionarNovoOpcional",
@@ -75,6 +77,7 @@ const controllers = () => {
 
           if (novoOpcional.insertId) {
             req.body.idopcional = novoOpcional.insertId;
+            req.body.ordem = 1;
 
             const ComandoSqlAddItem = await readCommandSql.restornaStringSql(
               "adicionarOpcionalItem",
@@ -99,7 +102,9 @@ const controllers = () => {
             return { status: "error", message: "Falha ao adicionar opcional." };
           }
         } else {
+          // já existe o grupo simples, adiciona novo item
           req.body.idopcional = result[0].idopcional;
+          req.body.ordem = 1;
 
           const ComandoSqlAddItem = await readCommandSql.restornaStringSql(
             "adicionarOpcionalItem",
@@ -114,7 +119,7 @@ const controllers = () => {
         }
       }
 
-      // 🧩 SELEÇÃO DE OPÇÕES (com edição)
+      // 🧩 SELEÇÃO DE OPÇÕES (com ordem garantida)
       else {
         if (req.body.idopcional && req.body.edicao === true) {
           const ComandoUpdateGrupo = await readCommandSql.restornaStringSql(
@@ -137,8 +142,11 @@ const controllers = () => {
             "opcional"
           );
 
-          for (let item of req.body.lista) {
+          for (let i = 0; i < req.body.lista.length; i++) {
+            const item = req.body.lista[i];
             item.idopcional = req.body.idopcional;
+            item.ordem = i + 1;
+
             if (item.idopcionalitem && parseInt(item.idopcionalitem) > 0)
               await db.Query(ComandoUpdateItem, item);
             else await db.Query(ComandoInsertItem, item);
@@ -150,6 +158,7 @@ const controllers = () => {
           };
         }
 
+        // Novo grupo de seleção
         const ComandoSqlAddOpcional = await readCommandSql.restornaStringSql(
           "adicionarNovoOpcional",
           "opcional"
@@ -175,8 +184,12 @@ const controllers = () => {
             "adicionarOpcionalItem",
             "opcional"
           );
-          for (let item of req.body.lista) {
+
+          // 🔄 Inserção SEQUENCIAL (ordem garantida)
+          for (let i = 0; i < req.body.lista.length; i++) {
+            const item = req.body.lista[i];
             item.idopcional = novoOpcional.insertId;
+            item.ordem = i + 1;
             await db.Query(ComandoSqlAddItem, item);
           }
 
