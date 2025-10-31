@@ -1,37 +1,37 @@
-var fs = require("fs");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = class ReadCommandSql {
   async restornaStringSql(chave, controller) {
-    var commandRegex = "";
-
     try {
-      await new Promise(async (resolve) => {
-        await fs.readFile(
-          `./server/scripts/${controller}.sql`,
-          function (err, buf) {
-            if (err) {
-              console.log(err);
-              resolve();
-            }
+      const caminhoArquivo = path.join(
+        __dirname,
+        "..",
+        "scripts",
+        `${controller}.sql`
+      );
+      const conteudo = fs.readFileSync(caminhoArquivo, "utf8");
 
-            var str = buf.toString();
-            var regex = new RegExp(
-              `^--INIT#${chave}#(.*?)^--END#${chave}#`,
-              "sm"
-            );
+      const regex = new RegExp(
+        `--INIT#${chave}#[\\s\\S]*?--END#${chave}#`,
+        "m"
+      );
+      const resultado = conteudo.match(regex);
 
-            commandRegex = str.match(regex);
-            commandRegex = commandRegex[0]
-              .toString()
-              .replace(`--INIT#${chave}#`, "")
-              .replace(`--END#${chave}#`, "");
+      if (!resultado) {
+        console.error(`⚠️ SQL "${chave}" não encontrado em ${controller}.sql`);
+        return "";
+      }
 
-            resolve();
-          }
-        );
-      });
-    } catch (error) {}
+      const sqlLimpo = resultado[0]
+        .replace(`--INIT#${chave}#`, "")
+        .replace(`--END#${chave}#`, "")
+        .trim();
 
-    return commandRegex;
+      return sqlLimpo;
+    } catch (error) {
+      console.error(`❌ Erro ao ler SQL (${chave}):`, error);
+      return "";
+    }
   }
 };
