@@ -59,15 +59,13 @@ const controllers = () => {
           "obterProdutoOpcionalPorOpcional",
           "opcional"
         );
-
         var result = await db.Query(ComandoSqlSelect, {
           idproduto: req.body.idproduto,
         });
 
         if (result === undefined || result.length === 0) {
           // Não existe um opcional simples no produto
-
-          var ComandoSqlAddOpcional = await readCommandSql.restornaStringSql(
+          var ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
             "adicionarNovoOpcional",
             "opcional"
           );
@@ -85,7 +83,7 @@ const controllers = () => {
             req.body.idopcional = novoOpcional.insertId;
 
             // adiciona o opcional item
-            var ComandoSqlAddItem = await readCommandSql.restornaStringSql(
+            var ComandoSqlAddItem = await readCommandSql.retornaStringSql(
               "adicionarOpcionalItem",
               "opcional"
             );
@@ -93,7 +91,7 @@ const controllers = () => {
 
             // vincula o opcional no produto
             var ComandoSqlAddOpcionalProduto =
-              await readCommandSql.restornaStringSql(
+              await readCommandSql.retornaStringSql(
                 "adicionarOpcionalProduto",
                 "opcional"
               );
@@ -117,7 +115,7 @@ const controllers = () => {
           req.body.idopcional = result[0].idopcional;
 
           // adiciona o opcional item
-          var ComandoSqlAddItem = await readCommandSql.restornaStringSql(
+          var ComandoSqlAddItem = await readCommandSql.retornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
@@ -128,9 +126,12 @@ const controllers = () => {
             message: "Opcional adicionado com sucesso.",
           };
         }
-      } else {
-        // SELEÇÃO DE OPÇÕES
+      }
 
+      // ======================================================
+      // SELEÇÃO DE OPÇÕES (novo bloco com suporte à edição)
+      // ======================================================
+      else {
         // EDIÇÃO DE OPCIONAL DE SELEÇÃO
         if (req.body.idopcional && req.body.edicao === true) {
           // Atualiza o grupo do opcional
@@ -170,7 +171,7 @@ const controllers = () => {
           };
         }
 
-        // adicona um novo opcional
+        // adiciona um novo opcional (novo grupo)
         var ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
           "adicionarNovoOpcional",
           "opcional"
@@ -221,7 +222,7 @@ const controllers = () => {
         }
       }
     } catch (error) {
-      console.log(error);
+      console.log("❌ Erro ao salvar opcional:", error);
       return {
         status: "error",
         message: "Falha ao salvar opcional.",
