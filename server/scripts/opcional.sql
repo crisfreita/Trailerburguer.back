@@ -95,7 +95,7 @@ WHERE idopcionalitem = @idopcionalitem;
 
 UPDATE opcionalitem
 SET nome = @nome,
-    valor = @valor
+    valor = @valor,
     ordem = @ordem
 WHERE idopcionalitem = @idopcionalitem
 
