@@ -55,8 +55,7 @@ VALUES
 
 --END#adicionarNovoOpcional#
 
-
---INIT#adicionarOpcionalItem#
+  
 
 --INIT#adicionarOpcionalItem#
 INSERT INTO opcionalitem
@@ -66,7 +65,7 @@ VALUES
 --END#adicionarOpcionalItem#
 
 
---END#adicionarOpcionalItem#
+ 
 
 
 --INIT#adicionarOpcionalProduto#
