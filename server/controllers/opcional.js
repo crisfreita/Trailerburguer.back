@@ -8,7 +8,7 @@ const controllers = () => {
     try {
       const idproduto = req.params.idproduto;
 
-      const ComandoSql = await readCommandSql.retornaStringSql(
+      const ComandoSql = await readCommandSql.restornaStringSql(
         "obterPorProdutoId",
         "opcional"
       );
@@ -23,7 +23,7 @@ const controllers = () => {
 
   const removerOpcionalItem = async (req) => {
     try {
-      const ComandoSql = await readCommandSql.retornaStringSql(
+      const ComandoSql = await readCommandSql.restornaStringSql(
         "removerOpcionalItem",
         "opcional"
       );
