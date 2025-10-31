@@ -1,38 +1,47 @@
-var fs = require('fs');
+const fs = require("fs");
+const path = require("path");
 
 module.exports = class ReadCommandSql {
+  async restornaStringSql(chave, controller) {
+    try {
+      const caminhoArquivo = path.join(
+        __dirname,
+        "..",
+        "scripts",
+        `${controller}.sql`
+      );
 
-    async restornaStringSql(chave, controller) {
+      if (!fs.existsSync(caminhoArquivo)) {
+        console.error(`❌ Arquivo SQL não encontrado: ${caminhoArquivo}`);
+        return null;
+      }
 
-        var commandRegex = '';
+      const conteudo = fs.readFileSync(caminhoArquivo, "utf8");
 
-        try {
-            
-            await new Promise(async (resolve) => {
+      // Expressão regular robusta: busca o trecho entre INIT e END em qualquer parte do arquivo
+      const regex = new RegExp(
+        `--INIT#${chave}#[\\s\\S]*?--END#${chave}#`,
+        "gm"
+      );
+      const resultado = conteudo.match(regex);
 
-                await fs.readFile(`./server/scripts/${controller}.sql`, function (err, buf) {
-                    if (err) { 
-                        console.log(err); 
-                        resolve();
-                    }
+      if (!resultado || resultado.length === 0) {
+        console.error(
+          `⚠️ Trecho SQL não encontrado: ${chave} em ${controller}.sql`
+        );
+        return null;
+      }
 
-                    var str = buf.toString();
-                    var regex = new RegExp(`^--INIT#${chave}#(.*?)^--END#${chave}#`, "sm");
+      // Remove as tags e limpa espaços
+      const sql = resultado[0]
+        .replace(`--INIT#${chave}#`, "")
+        .replace(`--END#${chave}#`, "")
+        .trim();
 
-                    commandRegex = str.match(regex);
-                    commandRegex = commandRegex[0].toString().replace(`--INIT#${chave}#`, '').replace(`--END#${chave}#`, '')
-
-                    resolve();
-                })
-
-            });
-
-        } catch (error) {
-            
-        }
-
-        return commandRegex;
-
+      return sql;
+    } catch (error) {
+      console.error(`❌ Erro ao ler SQL (${chave}):`, error);
+      return null;
     }
-
-}
+  }
+};
