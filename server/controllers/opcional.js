@@ -55,10 +55,11 @@ const controllers = () => {
         // OPCIONAL SIMPLES
 
         // valida se o opcional simples já existe no produto
-        var ComandoSqlSelect = await readCommandSql.restornaStringSql(
+        var ComandoSqlSelect = await readCommandSql.retornaStringSql(
           "obterProdutoOpcionalPorOpcional",
           "opcional"
         );
+
         var result = await db.Query(ComandoSqlSelect, {
           idproduto: req.body.idproduto,
         });
