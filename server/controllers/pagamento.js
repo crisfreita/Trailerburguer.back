@@ -220,19 +220,24 @@ const controllers = () => {
       if (result.status === "approved") {
         await db.Query(
           `UPDATE pedido
-         SET idpedidostatus = 3
-         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
+     SET idpedidostatus = 3
+     WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
           { id_mp: paymentId }
         );
         console.log("✅ Pedido atualizado como pago:", paymentId);
       } else if (result.status === "rejected") {
         await db.Query(
           `UPDATE pedido
-         SET idpedidostatus = 6
-         WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
+     SET idpedidostatus = 6
+     WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
           { id_mp: paymentId }
         );
         console.log("❌ Pagamento PIX recusado:", paymentId);
+      } else if (result.status === "expired") {
+        console.log("⏰ Pagamento PIX expirado:", paymentId);
+
+        // ⚠️ Cancela o PIX automaticamente (Mercado Pago e banco local)
+        await cancelarPix(paymentId);
       } else {
         console.log("⏳ Pagamento ainda pendente:", paymentId);
       }
@@ -246,6 +251,65 @@ const controllers = () => {
       };
     } catch (error) {
       console.log("❌ Erro ao verificar status PIX:", error);
+      return { status: "error", message: error.message };
+    }
+  };
+
+  const cancelarPix = async (paymentId) => {
+    try {
+      // 🔹 Busca o Access Token do banco
+      const ComandoSqlAccessToken = await readCommandSql.restornaStringSql(
+        "obterAccessToken",
+        "pagamento"
+      );
+      const resultToken = await db.Query(ComandoSqlAccessToken);
+
+      if (resultToken.length === 0) {
+        throw new Error("Access Token não encontrado no banco");
+      }
+
+      const accessToken = resultToken[0].accesstoken;
+
+      // 🔹 Inicializa o cliente Mercado Pago
+      const client = new MercadoPagoConfig({ accessToken });
+      const payment = new Payment(client);
+
+      // 🔹 Envia requisição para cancelar o pagamento
+      const result = await payment.update({
+        id: paymentId,
+        body: { status: "cancelled" },
+      });
+
+      console.log("🚫 Pagamento PIX cancelado no Mercado Pago:", result.status);
+
+      // 🔹 Atualiza status no banco local
+      await db.Query(
+        `UPDATE pagamento 
+       SET status = @status, date_last_updated = NOW() 
+       WHERE id_mp = @id_mp`,
+        {
+          status: result.status,
+          id_mp: paymentId,
+        }
+      );
+
+      // 🔹 Atualiza o pedido vinculado (opcional, status 7 = cancelado)
+      await db.Query(
+        `UPDATE pedido
+       SET idpedidostatus = 7
+       WHERE idpedido = (SELECT idpedido FROM pagamento WHERE id_mp = @id_mp)`,
+        { id_mp: paymentId }
+      );
+
+      console.log("🛑 Pedido marcado como cancelado:", paymentId);
+
+      return {
+        status: result.status,
+        id: paymentId,
+        message: "Pagamento cancelado com sucesso",
+      };
+    } catch (error) {
+      console.log("❌ Erro ao cancelar PIX:", error);
       return { status: "error", message: error.message };
     }
   };
@@ -395,6 +459,7 @@ const controllers = () => {
     pagarComPix,
     salvarPagamento,
     verificarStatusPix,
+    cancelarPix,
   });
 };
 
