@@ -80,3 +80,23 @@ UPDATE opcionalitem
 SET ativo = @ativar
 WHERE idopcionalitem = @idopcionalitem;
 -- END#salvarOpcionalItemCheck#
+
+--INIT#atualizarOpcionalItem#
+
+UPDATE opcionalitem
+SET nome = @nome,
+    valor = @valor
+WHERE idopcionalitem = @idopcionalitem
+
+--END#atualizarOpcionalItem#
+
+
+--INIT#atualizarOpcionalGrupo#
+
+UPDATE opcional
+SET nome = @nome,
+    minimo = @minimo,
+    maximo = @maximo
+WHERE idopcional = @idopcional
+
+--END#atualizarOpcionalGrupo#
