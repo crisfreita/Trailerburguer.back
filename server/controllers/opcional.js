@@ -40,7 +40,7 @@ const controllers = () => {
     try {
       // 🧩 Se for opcional simples
       if (req.body.simples) {
-        const ComandoSqlSelect = await readCommandSql.retornaStringSql(
+        const ComandoSqlSelect = await readCommandSql.restornaStringSql(
           "obterProdutoOpcionalPorOpcional",
           "opcional"
         );
@@ -50,7 +50,7 @@ const controllers = () => {
 
         // 🧠 Edição simples
         if (req.body.idopcionalitem) {
-          const ComandoUpdate = await readCommandSql.retornaStringSql(
+          const ComandoUpdate = await readCommandSql.restornaStringSql(
             "atualizarOpcionalItem",
             "opcional"
           );
@@ -62,7 +62,7 @@ const controllers = () => {
         }
 
         if (!result || result.length === 0) {
-          const ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddOpcional = await readCommandSql.restornaStringSql(
             "adicionarNovoOpcional",
             "opcional"
           );
@@ -76,13 +76,13 @@ const controllers = () => {
           if (novoOpcional.insertId) {
             req.body.idopcional = novoOpcional.insertId;
 
-            const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+            const ComandoSqlAddItem = await readCommandSql.restornaStringSql(
               "adicionarOpcionalItem",
               "opcional"
             );
             await db.Query(ComandoSqlAddItem, req.body);
 
-            const ComandoSqlAddProduto = await readCommandSql.retornaStringSql(
+            const ComandoSqlAddProduto = await readCommandSql.restornaStringSql(
               "adicionarOpcionalProduto",
               "opcional"
             );
@@ -101,7 +101,7 @@ const controllers = () => {
         } else {
           req.body.idopcional = result[0].idopcional;
 
-          const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddItem = await readCommandSql.restornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
@@ -117,7 +117,7 @@ const controllers = () => {
       // 🧩 SELEÇÃO DE OPÇÕES (com edição)
       else {
         if (req.body.idopcional && req.body.edicao === true) {
-          const ComandoUpdateGrupo = await readCommandSql.retornaStringSql(
+          const ComandoUpdateGrupo = await readCommandSql.restornaStringSql(
             "atualizarOpcionalGrupo",
             "opcional"
           );
@@ -128,11 +128,11 @@ const controllers = () => {
             maximo: req.body.maximoOpcao,
           });
 
-          const ComandoUpdateItem = await readCommandSql.retornaStringSql(
+          const ComandoUpdateItem = await readCommandSql.restornaStringSql(
             "atualizarOpcionalItem",
             "opcional"
           );
-          const ComandoInsertItem = await readCommandSql.retornaStringSql(
+          const ComandoInsertItem = await readCommandSql.restornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
@@ -150,7 +150,7 @@ const controllers = () => {
           };
         }
 
-        const ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
+        const ComandoSqlAddOpcional = await readCommandSql.restornaStringSql(
           "adicionarNovoOpcional",
           "opcional"
         );
@@ -162,7 +162,7 @@ const controllers = () => {
         });
 
         if (novoOpcional.insertId) {
-          const ComandoSqlAddProduto = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddProduto = await readCommandSql.restornaStringSql(
             "adicionarOpcionalProduto",
             "opcional"
           );
@@ -171,7 +171,7 @@ const controllers = () => {
             idopcional: novoOpcional.insertId,
           });
 
-          const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddItem = await readCommandSql.restornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
