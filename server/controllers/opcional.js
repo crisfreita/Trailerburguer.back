@@ -8,94 +8,85 @@ const controllers = () => {
     try {
       const idproduto = req.params.idproduto;
 
-      var ComandoSql = await readCommandSql.restornaStringSql(
+      const ComandoSql = await readCommandSql.retornaStringSql(
         "obterPorProdutoId",
         "opcional"
       );
-      var result = await db.Query(ComandoSql, { idproduto: idproduto });
+      const result = await db.Query(ComandoSql, { idproduto });
 
-      return {
-        status: "success",
-        data: result,
-      };
+      return { status: "success", data: result };
     } catch (error) {
       console.log(error);
-      return {
-        status: "error",
-        message: "Falha ao obter os opcionais.",
-      };
+      return { status: "error", message: "Falha ao obter os opcionais." };
     }
   };
 
   const removerOpcionalItem = async (req) => {
     try {
-      var ComandoSql = await readCommandSql.restornaStringSql(
+      const ComandoSql = await readCommandSql.retornaStringSql(
         "removerOpcionalItem",
         "opcional"
       );
       await db.Query(ComandoSql, req.body);
 
-      return {
-        status: "success",
-        message: "Opcional removido com sucesso.",
-      };
+      return { status: "success", message: "Opcional removido com sucesso." };
     } catch (error) {
       console.log(error);
-      return {
-        status: "error",
-        message: "Falha ao remover o opcional.",
-      };
+      return { status: "error", message: "Falha ao remover o opcional." };
     }
   };
 
   const salvarOpcionaisProduto = async (req) => {
     try {
-      // valida se é um opcional simples ou seleção de opções
+      // 🧩 Se for opcional simples
       if (req.body.simples) {
-        // OPCIONAL SIMPLES
-
-        // valida se o opcional simples já existe no produto
-        var ComandoSqlSelect = await readCommandSql.retornaStringSql(
+        const ComandoSqlSelect = await readCommandSql.retornaStringSql(
           "obterProdutoOpcionalPorOpcional",
           "opcional"
         );
-        var result = await db.Query(ComandoSqlSelect, {
+        const result = await db.Query(ComandoSqlSelect, {
           idproduto: req.body.idproduto,
         });
 
-        if (result === undefined || result.length === 0) {
-          // Não existe um opcional simples no produto
-          var ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
+        // 🧠 Edição simples
+        if (req.body.idopcionalitem) {
+          const ComandoUpdate = await readCommandSql.retornaStringSql(
+            "atualizarOpcionalItem",
+            "opcional"
+          );
+          await db.Query(ComandoUpdate, req.body);
+          return {
+            status: "success",
+            message: "Opcional atualizado com sucesso.",
+          };
+        }
+
+        if (!result || result.length === 0) {
+          const ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
             "adicionarNovoOpcional",
             "opcional"
           );
-          var novoOpcional = await db.Query(ComandoSqlAddOpcional, {
+          const novoOpcional = await db.Query(ComandoSqlAddOpcional, {
             nome: "Opcionais",
             tiposimples: 1,
             minimo: 0,
             maximo: 0,
           });
 
-          if (
-            novoOpcional.insertId !== undefined &&
-            novoOpcional.insertId > 0
-          ) {
+          if (novoOpcional.insertId) {
             req.body.idopcional = novoOpcional.insertId;
 
-            // adiciona o opcional item
-            var ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+            const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
               "adicionarOpcionalItem",
               "opcional"
             );
             await db.Query(ComandoSqlAddItem, req.body);
 
-            // vincula o opcional no produto
-            var ComandoSqlAddOpcionalProduto =
-              await readCommandSql.retornaStringSql(
-                "adicionarOpcionalProduto",
-                "opcional"
-              );
-            await db.Query(ComandoSqlAddOpcionalProduto, {
+            const ComandoSqlAddProduto = await readCommandSql.retornaStringSql(
+              "adicionarOpcionalProduto",
+              "opcional"
+            );
+            await db.Query(ComandoSqlAddProduto, {
               idproduto: req.body.idproduto,
               idopcional: novoOpcional.insertId,
             });
@@ -105,21 +96,16 @@ const controllers = () => {
               message: "Opcional adicionado com sucesso.",
             };
           } else {
-            return {
-              status: "error",
-              message: "Falha ao adicionar opcional.",
-            };
+            return { status: "error", message: "Falha ao adicionar opcional." };
           }
         } else {
-          // Já existe um opcional cadastrado, adiciona o novo
           req.body.idopcional = result[0].idopcional;
 
-          // adiciona o opcional item
-          var ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
-          var result = await db.Query(ComandoSqlAddItem, req.body);
+          await db.Query(ComandoSqlAddItem, req.body);
 
           return {
             status: "success",
@@ -128,13 +114,9 @@ const controllers = () => {
         }
       }
 
-      // ======================================================
-      // SELEÇÃO DE OPÇÕES (novo bloco com suporte à edição)
-      // ======================================================
+      // 🧩 SELEÇÃO DE OPÇÕES (com edição)
       else {
-        // EDIÇÃO DE OPCIONAL DE SELEÇÃO
         if (req.body.idopcional && req.body.edicao === true) {
-          // Atualiza o grupo do opcional
           const ComandoUpdateGrupo = await readCommandSql.retornaStringSql(
             "atualizarOpcionalGrupo",
             "opcional"
@@ -156,13 +138,10 @@ const controllers = () => {
           );
 
           for (let item of req.body.lista) {
-            item.idopcional = req.body.idopcional; // necessário para insert
-
-            if (item.idopcionalitem) {
+            item.idopcional = req.body.idopcional;
+            if (item.idopcionalitem && parseInt(item.idopcionalitem) > 0)
               await db.Query(ComandoUpdateItem, item);
-            } else {
-              await db.Query(ComandoInsertItem, item);
-            }
+            else await db.Query(ComandoInsertItem, item);
           }
 
           return {
@@ -171,72 +150,54 @@ const controllers = () => {
           };
         }
 
-        // adiciona um novo opcional (novo grupo)
-        var ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
+        const ComandoSqlAddOpcional = await readCommandSql.retornaStringSql(
           "adicionarNovoOpcional",
           "opcional"
         );
-        var novoOpcional = await db.Query(ComandoSqlAddOpcional, {
+        const novoOpcional = await db.Query(ComandoSqlAddOpcional, {
           nome: req.body.titulo,
           tiposimples: 0,
           minimo: req.body.minimoOpcao,
           maximo: req.body.maximoOpcao,
         });
 
-        if (novoOpcional.insertId !== undefined && novoOpcional.insertId > 0) {
-          // vincula o opcional no produto
-          var ComandoSqlAddOpcionalProduto =
-            await readCommandSql.retornaStringSql(
-              "adicionarOpcionalProduto",
-              "opcional"
-            );
-          await db.Query(ComandoSqlAddOpcionalProduto, {
+        if (novoOpcional.insertId) {
+          const ComandoSqlAddProduto = await readCommandSql.retornaStringSql(
+            "adicionarOpcionalProduto",
+            "opcional"
+          );
+          await db.Query(ComandoSqlAddProduto, {
             idproduto: req.body.idproduto,
             idopcional: novoOpcional.insertId,
           });
 
-          var ComandoSqlAddItem = await readCommandSql.retornaStringSql(
+          const ComandoSqlAddItem = await readCommandSql.retornaStringSql(
             "adicionarOpcionalItem",
             "opcional"
           );
-
-          const sleep = (m) => new Promise((r) => setTimeout(r, m));
-
-          await Promise.all(
-            req.body.lista.map(async (element) => {
-              element.idopcional = novoOpcional.insertId;
-              await db.Query(ComandoSqlAddItem, element);
-              await sleep(500);
-            })
-          );
+          for (let item of req.body.lista) {
+            item.idopcional = novoOpcional.insertId;
+            await db.Query(ComandoSqlAddItem, item);
+          }
 
           return {
             status: "success",
             message: "Opcionais adicionados com sucesso.",
           };
         } else {
-          return {
-            status: "error",
-            message: "Falha ao adicionar opcionais.",
-          };
+          return { status: "error", message: "Falha ao adicionar opcionais." };
         }
       }
     } catch (error) {
       console.log("❌ Erro ao salvar opcional:", error);
-      return {
-        status: "error",
-        message: "Falha ao salvar opcional.",
-      };
+      return { status: "error", message: "Falha ao salvar opcional." };
     }
   };
 
   const salvarOpcionalItemCheck = async (req) => {
     try {
       const { idopcionalitem, ativar } = req.body;
-
-      if (!idopcionalitem || ativar === undefined) {
-        return { status: "error", message: "ID ou estado inválido." };
-      }
+      if (!idopcionalitem) return { status: "error", message: "ID inválido." };
 
       const ComandoSql =
         "UPDATE opcionalitem SET ativo = @ativar WHERE idopcionalitem = @idopcionalitem";
@@ -249,7 +210,7 @@ const controllers = () => {
           : "Item desativado com sucesso.",
       };
     } catch (error) {
-      console.error("Erro ao alterar item opcional:", error);
+      console.log("Erro ao alterar item opcional:", error);
       return {
         status: "error",
         message: "Falha ao atualizar o estado do item opcional.",

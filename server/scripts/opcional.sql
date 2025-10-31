@@ -58,10 +58,13 @@ VALUES
 
 --INIT#adicionarOpcionalItem#
 
+--INIT#adicionarOpcionalItem#
 INSERT INTO opcionalitem
-(idopcional, nome, valor)
+(idopcional, nome, valor, ativo, apagado)
 VALUES
-(@idopcional, @nome, @valor)
+(@idopcional, @nome, @valor, 1, 0)
+--END#adicionarOpcionalItem#
+
 
 --END#adicionarOpcionalItem#
 
