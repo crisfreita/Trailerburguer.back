@@ -27,7 +27,7 @@ const controllers = () => {
 
   const pagar = async (req) => {
     try {
-      // Obtém Access Token do banco
+      // 🔹 Obtém Access Token do banco
       const ComandoSqlAccessToken = await readCommandSql.restornaStringSql(
         "obterAccessToken",
         "pagamento"
@@ -39,7 +39,7 @@ const controllers = () => {
 
       const accessToken = result[0].accesstoken;
 
-      // Recalcula total
+      // 🔹 Recalcula total do pedido
       const totalCarrinho = await ctPedido
         .controllers()
         .calcularTotalPedido(req.body.pedido);
@@ -47,13 +47,13 @@ const controllers = () => {
       req.body.pedido.total = totalCarrinho;
       const dados = req.body;
 
-      // Inicializa client Mercado Pago
       const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
       const idempotencyKey = crypto.randomUUID();
 
       let retorno = {};
 
+      // 🔹 Gera pagamento conforme método
       if (dados.selectedPaymentMethod === "bank_transfer") {
         retorno = await pagarComPix(dados, payment, idempotencyKey);
       } else if (dados.selectedPaymentMethod === "credit_card") {
@@ -62,9 +62,46 @@ const controllers = () => {
         retorno = { status: "error", message: "Método de pagamento inválido." };
       }
 
+      // ===========================
+      // 💳 SALVAR CARTÃO SE SOLICITADO
+      // ===========================
+      if (
+        dados.salvarCartao &&
+        dados.telefonecliente &&
+        dados.formData &&
+        dados.selectedPaymentMethod === "credit_card"
+      ) {
+        try {
+          console.log(
+            "💾 Salvando cartão para telefone:",
+            dados.telefonecliente
+          );
+
+          const comandoSalvar = await readCommandSql.restornaStringSql(
+            "salvarCartao",
+            "pagamento"
+          );
+
+          const bandeira = dados.formData.payment_method_id || "desconhecida";
+          const ultimos_digitos = dados.formData.card?.last_four_digits || "";
+          const idcartao_mp = dados.formData.card?.id || null;
+
+          await db.Query(comandoSalvar, {
+            telefonecliente: dados.telefonecliente,
+            bandeira,
+            ultimos_digitos,
+            idcartao_mp,
+          });
+
+          console.log("✅ Cartão salvo com sucesso!");
+        } catch (err) {
+          console.warn("⚠️ Erro ao salvar cartão:", err.message);
+        }
+      }
+
       return retorno;
     } catch (error) {
-      console.log("Erro pagar", error);
+      console.log("❌ Erro pagar:", error);
       return { status: "error", message: "Falha ao realizar o pagamento." };
     }
   };
