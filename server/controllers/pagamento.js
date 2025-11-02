@@ -148,7 +148,7 @@ const controllers = () => {
       };
 
       // ==========================
-      // 🔹 Monta o corpo da requisição
+      // 🔹 Corpo do pagamento
       // ==========================
       const body = {
         installments: dados.formData?.installments || 1,
@@ -161,7 +161,9 @@ const controllers = () => {
         payer,
       };
 
-      // 🧩 Coloque AQUI os logs de debug 👇
+      // ==========================
+      // 🧩 Logs de debug
+      // ==========================
       console.log("💳 [MP] Criando pagamento...");
       console.table({
         token: body.token,
@@ -171,16 +173,23 @@ const controllers = () => {
       });
 
       // ==========================
-      // 🔹 Cria o pagamento no Mercado Pago
+      // 🔹 Cria pagamento no Mercado Pago
       // ==========================
       const resultado = await payment.create({
         body,
         requestOptions: { idempotencyKey },
       });
 
-      console.log("✅ Retorno MP (cartão):", resultado);
+      console.log("✅ Retorno MP (cartão):");
+      console.log({
+        id: resultado.id,
+        status: resultado.status,
+        card: resultado.card,
+        metodo: resultado.payment_method_id,
+      });
 
       paymentOrder = resultado;
+
       retorno = {
         status: "success",
         id_mp: resultado.id,
@@ -189,7 +198,59 @@ const controllers = () => {
       };
 
       // ==========================
-      // 💾 Salva registro do pagamento
+      // 💾 Salvar cartão (após retorno do MP)
+      // ==========================
+      if (
+        dados.salvarCartao &&
+        resultado.card &&
+        resultado.card.id &&
+        dados.telefonecliente
+      ) {
+        try {
+          const comandoSalvar = await readCommandSql.restornaStringSql(
+            "salvarCartao",
+            "pagamento"
+          );
+
+          const bandeira = resultado.payment_method_id || "desconhecida";
+          const ultimos_digitos = resultado.card.last_four_digits || "";
+          const idcartao_mp = resultado.card.id;
+
+          // 🔎 Evita duplicar cartão igual
+          const verificarSQL = `
+          SELECT idcartao FROM cartoes_cliente
+          WHERE telefonecliente = @telefonecliente AND idcartao_mp = @idcartao_mp
+        `;
+          const existe = await db.Query(verificarSQL, {
+            telefonecliente: dados.telefonecliente,
+            idcartao_mp,
+          });
+
+          if (existe.length === 0) {
+            await db.Query(comandoSalvar, {
+              telefonecliente: dados.telefonecliente,
+              bandeira,
+              ultimos_digitos,
+              idcartao_mp,
+            });
+
+            console.log("✅ Cartão salvo no banco:", {
+              bandeira,
+              ultimos_digitos,
+              idcartao_mp,
+            });
+          } else {
+            console.log(
+              "ℹ️ Cartão já salvo anteriormente, ignorando duplicação."
+            );
+          }
+        } catch (err) {
+          console.warn("⚠️ Erro ao salvar cartão:", err.message);
+        }
+      }
+
+      // ==========================
+      // 💾 Registro de pagamento
       // ==========================
       await salvarPagamento(dados, paymentOrder);
 
