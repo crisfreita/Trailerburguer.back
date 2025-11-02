@@ -73,4 +73,41 @@ module.exports = (server) => {
       res.send(500, { message: "Erro interno ao cancelar pagamento" });
     }
   });
+
+  // ===============================
+  // 💳 Cartões Salvos do Cliente
+  // ===============================
+
+  // Salvar cartão após pagamento
+  server.post("/pagamento/cartoes/salvar", async (req, res) => {
+    try {
+      const result = await ct.controllers().salvarCartao(req);
+      res.send(result);
+    } catch (error) {
+      console.error("❌ Erro ao salvar cartão:", error);
+      res.send(500, { status: "error", message: error.message });
+    }
+  });
+
+  // Obter cartões salvos
+  server.get("/pagamento/cartoes", async (req, res) => {
+    try {
+      const result = await ct.controllers().obterCartoes(req);
+      res.send(result);
+    } catch (error) {
+      console.error("❌ Erro ao obter cartões:", error);
+      res.send(500, { status: "error", message: error.message });
+    }
+  });
+
+  // Remover cartão salvo
+  server.del("/pagamento/cartoes/:idcartao", async (req, res) => {
+    try {
+      const result = await ct.controllers().removerCartao(req);
+      res.send(result);
+    } catch (error) {
+      console.error("❌ Erro ao remover cartão:", error);
+      res.send(500, { status: "error", message: error.message });
+    }
+  });
 };

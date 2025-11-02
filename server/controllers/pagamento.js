@@ -452,6 +452,90 @@ const controllers = () => {
     }
   };
 
+  // 🔹 Salvar cartão após pagamento
+  const salvarCartao = async (req, res) => {
+    try {
+      const { formData, salvarCartao, telefonecliente } = req.body;
+
+      if (!salvarCartao || !telefonecliente) {
+        return res.json({
+          status: "ignored",
+          message: "Cartão não salvo (cliente não identificado).",
+        });
+      }
+
+      const bandeira = formData.payment_method_id || "desconhecida";
+      const ultimos_digitos = formData.card?.last_four_digits || "";
+      const idcartao_mp = formData.card?.id || null;
+
+      const comando = await readCommandSql.restornaStringSql(
+        "salvarCartao",
+        "pagamento"
+      );
+
+      await db.Query(comando, {
+        telefonecliente,
+        bandeira,
+        ultimos_digitos,
+        idcartao_mp,
+      });
+
+      res.json({ status: "success", message: "Cartão salvo com sucesso!" });
+    } catch (err) {
+      console.error("Erro ao salvar cartão:", err);
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+
+  // 🔹 Obter cartões salvos
+  const obterCartoes = async (req, res) => {
+    try {
+      const telefonecliente =
+        req.query.telefonecliente || req.body.telefonecliente;
+
+      if (!telefonecliente) {
+        return res
+          .status(400)
+          .json({
+            status: "error",
+            message: "Telefone do cliente não informado.",
+          });
+      }
+
+      const comando = await readCommandSql.restornaStringSql(
+        "obterCartoes",
+        "pagamento"
+      );
+      const result = await db.Query(comando, { telefonecliente });
+      res.json(result);
+    } catch (err) {
+      console.error("Erro ao obter cartões:", err);
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+
+  // 🔹 Remover cartão salvo
+  const removerCartao = async (req, res) => {
+    try {
+      const { idcartao } = req.params;
+      if (!idcartao)
+        return res
+          .status(400)
+          .json({ status: "error", message: "ID do cartão não informado." });
+
+      const comando = await readCommandSql.restornaStringSql(
+        "removerCartao",
+        "pagamento"
+      );
+      await db.Query(comando, { idcartao });
+
+      res.json({ status: "success", message: "Cartão removido com sucesso!" });
+    } catch (err) {
+      console.error("Erro ao remover cartão:", err);
+      res.status(500).json({ status: "error", message: err.message });
+    }
+  };
+
   return Object.create({
     obterPublicKey,
     pagar,
@@ -460,6 +544,9 @@ const controllers = () => {
     salvarPagamento,
     verificarStatusPix,
     cancelarPix,
+    salvarCartao,
+    obterCartoes,
+    removerCartao,
   });
 };
 
