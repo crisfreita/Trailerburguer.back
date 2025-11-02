@@ -39,7 +39,16 @@ const controllers = () => {
 
       const accessToken = result[0].accesstoken;
 
-      // 🔹 Recalcula total do pedido
+      // 🔹 Valida se existe o pedido
+      if (!req.body.pedido) {
+        console.warn("⚠️ Nenhum pedido recebido no body:", req.body);
+        return {
+          status: "error",
+          message: "Pedido não informado no corpo da requisição.",
+        };
+      }
+
+      // 🔹 Recalcula total com base no pedido
       const totalCarrinho = await ctPedido
         .controllers()
         .calcularTotalPedido(req.body.pedido);
@@ -47,6 +56,7 @@ const controllers = () => {
       req.body.pedido.total = totalCarrinho;
       const dados = req.body;
 
+      // 🔹 Inicializa Mercado Pago
       const client = new MercadoPagoConfig({ accessToken });
       const payment = new Payment(client);
       const idempotencyKey = crypto.randomUUID();
