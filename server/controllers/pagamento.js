@@ -63,18 +63,29 @@ const controllers = () => {
 
       let retorno = {};
 
-      // 🔹 Gera pagamento conforme método
+      // ====================================
+      // 💰 Define o método de pagamento
+      // ====================================
       if (dados.selectedPaymentMethod === "bank_transfer") {
+        // 🔸 PIX
         retorno = await pagarComPix(dados, payment, idempotencyKey);
       } else if (dados.selectedPaymentMethod === "credit_card") {
+        // 🔸 Cartão de crédito
+        // Se o usuário clicou em "usar cartão salvo"
+        if (dados.formData?.token) {
+          console.log("💳 Pagando com cartão salvo:", dados.formData.token);
+        } else {
+          console.log("💳 Pagando com novo cartão digitado via Brick");
+        }
+
         retorno = await pagarComCartao(dados, payment, idempotencyKey);
       } else {
         retorno = { status: "error", message: "Método de pagamento inválido." };
       }
 
-      // ===========================
-      // 💳 SALVAR CARTÃO SE SOLICITADO
-      // ===========================
+      // ====================================
+      // 💾 SALVAR CARTÃO SE SOLICITADO
+      // ====================================
       if (
         dados.salvarCartao &&
         dados.telefonecliente &&
@@ -125,40 +136,69 @@ const controllers = () => {
       let retorno = {};
       let paymentOrder = null;
 
-      const body = {
-        installments: 1,
-        payer: dados.formData.payer,
-        token: dados.formData.token,
-        transaction_amount: dados.pedido.total,
-        description: "Pagamento online - " + empresa.data[0].nome,
-        payment_method_id: dados.formData.payment_method_id,
-        issuer_id: dados.formData.issuer_id,
-        statement_descriptor: empresa.data[0].nome,
+      // ==========================
+      // 🔹 Dados do pagador (payer)
+      // ==========================
+      const payer = dados.formData?.payer || {
+        email: dados.pedido?.email || "cliente@exemplo.com",
+        identification: {
+          type: "CPF",
+          number: dados.pedido?.cpfcliente || "00000000000",
+        },
       };
 
-      await payment
-        .create({ body, requestOptions: { idempotencyKey } })
-        .then((resultado) => {
-          paymentOrder = resultado;
-          retorno = {
-            status: "success",
-            id_mp: resultado.id,
-            status_mp: resultado.status,
-            message: "Pagamento com cartão criado com sucesso!",
-          };
-        })
-        .catch((error) => {
-          console.log("Erro cartão", error);
-          retorno = { status: "error", message: error.message };
-        });
+      // ==========================
+      // 🔹 Monta o corpo da requisição
+      // ==========================
+      const body = {
+        installments: dados.formData?.installments || 1,
+        token: dados.formData?.token || null, // 👈 token do cartão salvo ou novo
+        transaction_amount: Number(dados.pedido.total),
+        description: `Pagamento online - ${empresa.data[0].nome}`,
+        payment_method_id: dados.formData?.payment_method_id || "credit_card",
+        issuer_id: dados.formData?.issuer_id || null,
+        statement_descriptor: empresa.data[0].nome,
+        payer,
+      };
 
+      // 🧩 Coloque AQUI os logs de debug 👇
+      console.log("💳 [MP] Criando pagamento...");
+      console.table({
+        token: body.token,
+        metodo: body.payment_method_id,
+        valor: body.transaction_amount,
+        cliente: payer.email,
+      });
+
+      // ==========================
+      // 🔹 Cria o pagamento no Mercado Pago
+      // ==========================
+      const resultado = await payment.create({
+        body,
+        requestOptions: { idempotencyKey },
+      });
+
+      console.log("✅ Retorno MP (cartão):", resultado);
+
+      paymentOrder = resultado;
+      retorno = {
+        status: "success",
+        id_mp: resultado.id,
+        status_mp: resultado.status,
+        message: "Pagamento com cartão criado com sucesso!",
+      };
+
+      // ==========================
+      // 💾 Salva registro do pagamento
+      // ==========================
       await salvarPagamento(dados, paymentOrder);
+
       return retorno;
     } catch (error) {
-      console.log(error);
+      console.error("❌ Erro ao pagar com cartão:", error);
       return {
         status: "error",
-        message: "Falha ao realizar pagamento com cartão.",
+        message: error.message || "Falha ao realizar pagamento com cartão.",
       };
     }
   };
