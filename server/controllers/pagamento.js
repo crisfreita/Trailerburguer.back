@@ -619,10 +619,34 @@ const controllers = () => {
         };
       }
 
-      const bandeira = formData.payment_method_id || "desconhecida";
-      const ultimos_digitos = formData.card?.last_four_digits || "";
-      const idcartao_mp = formData.card?.id || null;
+      const token = formData.token;
+      const email = formData.payer?.email;
 
+      if (!token || !email) {
+        return { status: "error", message: "Token ou e-mail não informado." };
+      }
+
+      // ✅ Mercado Pago Customer
+      let customer = await mpCustomer.search({ email });
+
+      if (!customer.results.length) {
+        customer = await mpCustomer.create({ email });
+      } else {
+        customer = customer.results[0];
+      }
+
+      // ✅ Criar cartão salvo no Mercado Pago
+      const novoCartao = await mpCard.create({
+        token,
+        customer_id: customer.id,
+      });
+
+      const bandeira = novoCartao.payment_method.id;
+      const ultimos_digitos = novoCartao.last_four_digits;
+      const card_id = novoCartao.id;
+      const customer_id = customer.id;
+
+      // ✅ Salvar no banco no seu padrão
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
@@ -632,7 +656,8 @@ const controllers = () => {
         telefonecliente,
         bandeira,
         ultimos_digitos,
-        idcartao_mp,
+        card_id,
+        customer_id,
       });
 
       return { status: "success", message: "Cartão salvo com sucesso!" };
@@ -645,15 +670,7 @@ const controllers = () => {
   // 🔹 Obter cartões salvos
   const obterCartoes = async (req) => {
     try {
-      const telefonecliente =
-        req.query.telefonecliente || req.body.telefonecliente;
-
-      if (!telefonecliente) {
-        return {
-          status: "error",
-          message: "Telefone do cliente não informado.",
-        };
-      }
+      const telefonecliente = req.query.telefonecliente;
 
       const comando = await readCommandSql.restornaStringSql(
         "obterCartoes",

@@ -23,21 +23,26 @@ WHERE
 --INIT#salvarCartao#
 
 INSERT INTO cartoes_cliente 
-(telefonecliente, bandeira, ultimos_digitos, idcartao_mp)
-VALUES (@telefonecliente, @bandeira, @ultimos_digitos, @idcartao_mp);
+(telefonecliente, bandeira, ultimos_digitos, card_id, customer_id)
+VALUES (@telefonecliente, @bandeira, @ultimos_digitos, @card_id, @customer_id);
 
 --END#salvarCartao#
+
 
 --INIT#obterCartoes#
 
 SELECT 
-  idcartao, bandeira, ultimos_digitos, idcartao_mp
+  idcartao,
+  bandeira,
+  ultimos_digitos,
+  card_id,
+  customer_id
 FROM cartoes_cliente
 WHERE telefonecliente = @telefonecliente
 ORDER BY idcartao DESC;
 
-
 --END#obterCartoes#
+
 
 --INIT#removerCartao#
 
@@ -45,3 +50,4 @@ DELETE FROM cartoes_cliente
 WHERE idcartao = @idcartao;
 
 --END#removerCartao#
+
