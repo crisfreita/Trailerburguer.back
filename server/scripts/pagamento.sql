@@ -35,11 +35,12 @@ SELECT
   idcartao,
   bandeira,
   ultimos_digitos,
-  card_id,
-  customer_id
+  COALESCE(NULLIF(card_id, 'null'), NULL) AS card_id,
+  COALESCE(NULLIF(customer_id, 'null'), NULL) AS customer_id
 FROM cartoes_cliente
 WHERE telefonecliente = @telefonecliente
 ORDER BY idcartao DESC;
+
 
 --END#obterCartoes#
 
