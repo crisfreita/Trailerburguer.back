@@ -577,7 +577,9 @@ const controllers = () => {
   // 🔹 Salvar cartão após pagamento
   const salvarCartao = async (req) => {
     try {
-      const { formData, salvarCartao, telefonecliente } = req.body;
+      console.log("📌 Dados recebidos salvarCartao:", req.body);
+
+      const { formData, salvarCartao, telefonecliente, pedido } = req.body;
 
       if (!salvarCartao) {
         return {
@@ -593,34 +595,53 @@ const controllers = () => {
         };
       }
 
-      const token = formData.token;
-      const email = formData.payer?.email;
-
-      if (!token || !email) {
-        return { status: "error", message: "Token ou e-mail não informado." };
+      // ✅ TOKEN obrigatório
+      const token = formData?.token;
+      if (!token) {
+        console.log("❌ Token não recebido!");
+        return { status: "error", message: "Token do cartão não recebido." };
       }
+
+      // ✅ Email REAL do cliente (BRICK NÃO MANDA EMAIL!)
+      const email =
+        pedido?.emailcliente || pedido?.email || req.body?.email || null;
+
+      if (!email) {
+        console.log("❌ Email não encontrado!");
+        return {
+          status: "error",
+          message: "E-mail do cliente não encontrado.",
+        };
+      }
+
+      console.log("📧 Email usado:", email);
 
       // ✅ Mercado Pago Customer
       let customer = await mpCustomer.search({ email });
 
       if (!customer.results.length) {
         customer = await mpCustomer.create({ email });
+        customer = customer.id;
       } else {
-        customer = customer.results[0];
+        customer = customer.results[0].id;
       }
+
+      console.log("👤 Customer ID:", customer);
 
       // ✅ Criar cartão salvo no Mercado Pago
       const novoCartao = await mpCard.create({
         token,
-        customer_id: customer.id,
+        customer_id: customer,
       });
+
+      console.log("🔥 Retorno mpCard.create:", novoCartao);
 
       const bandeira = novoCartao.payment_method.id;
       const ultimos_digitos = novoCartao.last_four_digits;
       const card_id = novoCartao.id;
-      const customer_id = customer.id;
+      const customer_id = customer;
 
-      // ✅ Salvar no banco no seu padrão
+      // ✅ Salvar no banco
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
@@ -636,7 +657,7 @@ const controllers = () => {
 
       return { status: "success", message: "Cartão salvo com sucesso!" };
     } catch (err) {
-      console.error("Erro ao salvar cartão:", err);
+      console.error("❌ Erro ao salvar cartão:", err);
       return { status: "error", message: err.message };
     }
   };
