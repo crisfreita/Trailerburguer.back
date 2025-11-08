@@ -493,7 +493,7 @@ const controllers = () => {
       if (pagamentoExistente.length > 0) {
         await db.Query(
           `UPDATE pagamento 
-           SET status = @status, date_last_updated = @date_last_updated 
+         SET status = @status, date_last_updated = @date_last_updated 
          WHERE id_mp = @id_mp`,
           {
             status: payment_created_order.status,
@@ -504,15 +504,15 @@ const controllers = () => {
       } else {
         await db.Query(
           `INSERT INTO pagamento 
-          (id_mp, idpedido, status, payment_method_id, transaction_amount,
-           date_created, date_last_updated, qr_code, ticket_url)
-         VALUES (@id_mp, @idpedido, @status, @payment_method_id, @transaction_amount,
-           @date_created, @date_last_updated, @qr_code, @ticket_url)`,
+        (id_mp, idpedido, status, payment_method_id, transaction_amount,
+         date_created, date_last_updated, qr_code, ticket_url)
+        VALUES (@id_mp, @idpedido, @status, @payment_method_id, 
+         @transaction_amount, @date_created, @date_last_updated, 
+         @qr_code, @ticket_url)`,
           payment_created_order
         );
       }
 
-      // 🔁 Atualiza o pedido com o ID do pagamento
       // 🔁 Atualiza o pedido com o ID do pagamento
       await db.Query(
         "UPDATE pedido SET id_mp = @id_mp WHERE idpedido = @idpedido",
@@ -522,35 +522,8 @@ const controllers = () => {
         }
       );
 
-      // 💾 Se for cartão, salva os dados tokenizados para uso futuro
-      if (paymentOrder.card && paymentOrder.card.id) {
-        const cardInfo = {
-          idpedido: payment_created_order.idpedido,
-          idcartao_mp: paymentOrder.card.id,
-          first_six_digits: paymentOrder.card.first_six_digits,
-          last_four_digits: paymentOrder.card.last_four_digits,
-          expiration_month: paymentOrder.card.expiration_month,
-          expiration_year: paymentOrder.card.expiration_year,
-          cardholder_name: paymentOrder.card.cardholder?.name || null,
-        };
-
-        try {
-          await db.Query(
-            `INSERT INTO cartao_cliente 
-            (idpedido, idcartao_mp, first_six_digits, last_four_digits, 
-             expiration_month, expiration_year, cardholder_name)
-           VALUES (@idpedido, @idcartao_mp, @first_six_digits, @last_four_digits, 
-             @expiration_month, @expiration_year, @cardholder_name)`,
-            cardInfo
-          );
-          console.log(
-            "💳 Cartão salvo com sucesso:",
-            cardInfo.last_four_digits
-          );
-        } catch (err) {
-          console.error("❌ Erro ao salvar cartão:", err.message);
-        }
-      }
+      // ✅ REMOVIDO: salvar cartão antigo usando idcartao_mp
+      // ⚠️ Agora SOMENTE salvarCartao() salva cartões, de forma correta.
 
       // 🟢 Se o pagamento foi aprovado
       if (paymentOrder.status === "approved") {
@@ -583,6 +556,7 @@ const controllers = () => {
             subject: "Comprovante do pedido aprovado!",
             html,
           });
+
           console.log("📧 E-mail de comprovante enviado com sucesso!");
         } catch (emailErr) {
           console.error("❌ Falha ao enviar e-mail:", emailErr.message);
