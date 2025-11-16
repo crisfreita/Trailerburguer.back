@@ -5,7 +5,8 @@ SELECT
     SUM(CASE WHEN idformapagamento = 1 THEN 1 ELSE 0 END) AS 'pix',
     SUM(CASE WHEN idformapagamento = 2 THEN 1 ELSE 0 END) AS 'dinheiro',
     SUM(CASE WHEN idformapagamento = 3 THEN 1 ELSE 0 END) AS 'credito',
-    SUM(CASE WHEN idformapagamento = 4 THEN 1 ELSE 0 END) AS 'debito'
+    SUM(CASE WHEN idformapagamento = 4 THEN 1 ELSE 0 END) AS 'debito',
+    SUM(CASE WHEN idformapagamento = 5 THEN 1 ELSE 0 END) AS 'online'
 FROM
     pedido
 WHERE
