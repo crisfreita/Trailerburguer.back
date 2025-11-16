@@ -24,9 +24,16 @@ WHERE
 
 INSERT INTO cartoes_cliente 
 (telefonecliente, bandeira, ultimos_digitos, card_id, customer_id)
-VALUES (@telefonecliente, @bandeira, @ultimos_digitos, @card_id, @customer_id);
+VALUES (
+  @telefonecliente,
+  @bandeira,
+  @ultimos_digitos,
+  NULLIF(@card_id, ''),
+  NULLIF(@customer_id, '')
+);
 
 --END#salvarCartao#
+
 
 
 --INIT#obterCartoes#

@@ -62,3 +62,32 @@ WHERE
     AND apagado = 0
 
 --END#obterValorTaxaPorKm#
+
+--INIT#salvarLimiteKm#
+
+INSERT INTO taxaentrega_limite (idempresa, limite_km)
+VALUES (@idempresa, @limite_km)
+ON DUPLICATE KEY UPDATE
+    limite_km = @limite_km;
+
+--END#salvarLimiteKm#
+
+--INIT#obterLimiteKm#
+
+SELECT
+    limite_km
+FROM
+    taxaentrega_limite
+WHERE
+    idempresa = @idempresa;
+
+--END#obterLimiteKm#
+
+--INIT#removerLimiteKm#
+
+DELETE FROM
+    taxaentrega_limite
+WHERE
+    idempresa = @idempresa;
+
+--END#removerLimiteKm#
