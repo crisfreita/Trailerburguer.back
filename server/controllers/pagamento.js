@@ -133,60 +133,76 @@ const controllers = () => {
   const pagarComCartao = async (dados, payment, idempotencyKey) => {
     try {
       const empresa = await ctEmpresa.controllers().obterDados();
+
       let retorno = {};
       let paymentOrder = null;
 
-      // ==========================
-      // 🔹 Dados do pagador (payer)
-      // ==========================
-      const payer = dados.formData?.payer || {
-        email: dados.pedido?.email || "cliente@exemplo.com",
+      // =============================
+      // 1️⃣ Detectar cartão salvo
+      // =============================
+      const usandoCartaoSalvo =
+        dados.cartaoSalvo &&
+        dados.cartaoSalvo.card_id &&
+        dados.cartaoSalvo.customer_id &&
+        dados.cartaoSalvo.card_id !== "null";
+
+      // =============================
+      // 2️⃣ Montar payer
+      // =============================
+      const payer = {
+        email:
+          dados.pedido.emailcliente ||
+          dados.pedido.email ||
+          "cliente@email.com",
         identification: {
           type: "CPF",
-          number: dados.pedido?.cpfcliente || "00000000000",
+          number: dados.pedido.cpfcliente || "00000000000",
         },
       };
 
-      // ==========================
-      // 🔹 Corpo do pagamento
-      // ==========================
-      const body = {
-        installments: dados.formData?.installments || 1,
-        token: dados.formData?.token || null, // 👈 token do cartão salvo ou novo
+      // =============================
+      // 3️⃣ Montar body do pagamento
+      // =============================
+      let body = {
         transaction_amount: Number(dados.pedido.total),
         description: `Pagamento online - ${empresa.data[0].nome}`,
-        payment_method_id: dados.formData?.payment_method_id || "credit_card",
-        issuer_id: dados.formData?.issuer_id || null,
-        statement_descriptor: empresa.data[0].nome,
+        payment_method_id:
+          dados.cartaoSalvo?.payment_method_id ||
+          dados.formData?.payment_method_id,
+        installments: 1,
         payer,
       };
 
-      // ==========================
-      // 🧩 Logs de debug
-      // ==========================
-      console.log("💳 [MP] Criando pagamento...");
-      console.table({
-        token: body.token,
-        metodo: body.payment_method_id,
-        valor: body.transaction_amount,
-        cliente: payer.email,
-      });
+      // ----------------------------
+      // 4️⃣ Se for cartão salvo → usar customer + card
+      // ----------------------------
+      if (usandoCartaoSalvo) {
+        console.log("💳 Usando cartão salvo:", dados.cartaoSalvo);
 
-      // ==========================
-      // 🔹 Cria pagamento no Mercado Pago
-      // ==========================
+        body.token = null;
+        body.customer_id = dados.cartaoSalvo.customer_id;
+        body.card_id = dados.cartaoSalvo.card_id;
+      } else {
+        // ----------------------------
+        // 5️⃣ Se for cartão NOVO → usar token
+        // ----------------------------
+        console.log("💳 Usando cartão novo (BRICK):", dados.formData.token);
+
+        body.token = dados.formData.token;
+      }
+
+      console.log("📤 Enviando body Mercado Pago:");
+      console.log(body);
+
+      // =============================
+      // 6️⃣ Criar pagamento no Mercado Pago
+      // =============================
       const resultado = await payment.create({
         body,
         requestOptions: { idempotencyKey },
       });
 
-      console.log("✅ Retorno MP (cartão):");
-      console.log({
-        id: resultado.id,
-        status: resultado.status,
-        card: resultado.card,
-        metodo: resultado.payment_method_id,
-      });
+      console.log("📥 Retorno MP:", resultado);
 
       paymentOrder = resultado;
 
@@ -194,73 +210,14 @@ const controllers = () => {
         status: "success",
         id_mp: resultado.id,
         status_mp: resultado.status,
-        message: "Pagamento com cartão criado com sucesso!",
       };
 
-      // ==========================
-      // 💾 Salvar cartão (após retorno do MP)
-      // ==========================
-      if (
-        dados.salvarCartao &&
-        resultado.card &&
-        resultado.card.id &&
-        dados.telefonecliente
-      ) {
-        try {
-          const comandoSalvar = await readCommandSql.restornaStringSql(
-            "salvarCartao",
-            "pagamento"
-          );
-
-          const bandeira = resultado.payment_method_id || "desconhecida";
-          const ultimos_digitos = resultado.card.last_four_digits || "";
-          const idcartao_mp = resultado.card.id;
-
-          // 🔎 Evita duplicar cartão igual
-          const verificarSQL = `
-          SELECT idcartao FROM cartoes_cliente
-          WHERE telefonecliente = @telefonecliente AND idcartao_mp = @idcartao_mp
-        `;
-          const existe = await db.Query(verificarSQL, {
-            telefonecliente: dados.telefonecliente,
-            idcartao_mp,
-          });
-
-          if (existe.length === 0) {
-            await db.Query(comandoSalvar, {
-              telefonecliente: dados.telefonecliente,
-              bandeira,
-              ultimos_digitos,
-              idcartao_mp,
-            });
-
-            console.log("✅ Cartão salvo no banco:", {
-              bandeira,
-              ultimos_digitos,
-              idcartao_mp,
-            });
-          } else {
-            console.log(
-              "ℹ️ Cartão já salvo anteriormente, ignorando duplicação."
-            );
-          }
-        } catch (err) {
-          console.warn("⚠️ Erro ao salvar cartão:", err.message);
-        }
-      }
-
-      // ==========================
-      // 💾 Registro de pagamento
-      // ==========================
       await salvarPagamento(dados, paymentOrder);
 
       return retorno;
-    } catch (error) {
-      console.error("❌ Erro ao pagar com cartão:", error);
-      return {
-        status: "error",
-        message: error.message || "Falha ao realizar pagamento com cartão.",
-      };
+    } catch (err) {
+      console.error("❌ Erro ao pagar com cartão:", err);
+      return { status: "error", message: err.message };
     }
   };
 
@@ -580,6 +537,7 @@ const controllers = () => {
       const { formData, salvarCartao, telefonecliente, pedido } = req.body;
 
       if (!salvarCartao) return { status: "ignored" };
+
       if (!telefonecliente)
         return { status: "error", message: "Telefone não informado" };
 
@@ -589,47 +547,43 @@ const controllers = () => {
       const email =
         pedido?.emailcliente || pedido?.email || req.body?.email || null;
 
-      if (!email) return { status: "error", message: "Email não encontrado" };
+      if (!email)
+        return { status: "error", message: "Email do cliente não encontrado" };
 
-      // -------------------------------------------
-      // 1. Inicializa Mercado Pago SDK (SDK nova)
-      // -------------------------------------------
+      // 🔥 Mercado Pago SDK nova
+      const ComandoSqlAccessToken = await readCommandSql.restornaStringSql(
+        "obterAccessToken",
+        "pagamento"
+      );
+      const tokenMP = await db.Query(ComandoSqlAccessToken);
+
       const client = new MercadoPagoConfig({
-        accessToken: process.env.ACCESS_TOKEN,
+        accessToken: tokenMP[0].accesstoken,
       });
 
-      // -------------------------------------------
-      // 2. Adiciona as instâncias AQUI MESMO!
-      // -------------------------------------------
-      const customerAPI = new Customer(client); // <-- AQUI
-      const cardAPI = new Card(client); // <-- AQUI
+      const customerAPI = new Customer(client);
+      const cardAPI = new Card(client);
 
-      // -------------------------------------------
-      // 3. Busca ou cria CUSTOMER
-      // -------------------------------------------
+      // 🔍 Buscar customer
       let customer = await customerAPI.search({ email });
 
-      if (customer.results.length === 0) {
+      if (!customer.results.length) {
         const novo = await customerAPI.create({ email });
         customer = novo.id;
       } else {
         customer = customer.results[0].id;
       }
 
-      // -------------------------------------------
-      // 4. Salva o cartão no Mercado Pago
-      // -------------------------------------------
+      // 💳 Criar cartão
       const novoCartao = await cardAPI.create({
         token: token,
-        customerId: customer, // <-- MUITO IMPORTANTE!
+        customerId: customer,
       });
 
       if (!novoCartao?.id)
-        return { status: "error", message: "Falha ao salvar cartão no MP" };
+        return { status: "error", message: "Erro ao salvar cartão no MP" };
 
-      // -------------------------------------------
-      // 5. Salva no banco local
-      // -------------------------------------------
+      // 💾 Salvar no banco
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
