@@ -635,8 +635,8 @@ const controllers = () => {
 
       // 💳 6 — Registrar cartão no Mercado Pago
       const novoCartao = await mpCard.create({
-        token,
-        customer_id: customer,
+        token: token,
+        customerId: customer, // ✔ CORRETO!
       });
 
       console.log("🔥 Retorno mpCard.create:", novoCartao);
