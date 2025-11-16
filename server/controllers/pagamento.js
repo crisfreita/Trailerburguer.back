@@ -2,7 +2,7 @@ const AcessoDados = require("../db/acessodados");
 const db = new AcessoDados();
 const ReadCommandSql = require("../common/readCommandSql");
 const readCommandSql = new ReadCommandSql();
-const { MercadoPagoConfig, Payment } = require("mercadopago");
+const { MercadoPagoConfig, Payment, Customer, Card } = require("mercadopago");
 const { enviarEmail } = require("../common/email");
 const crypto = require("crypto");
 
@@ -580,7 +580,6 @@ const controllers = () => {
       const { formData, salvarCartao, telefonecliente, pedido } = req.body;
 
       if (!salvarCartao) return { status: "ignored" };
-
       if (!telefonecliente)
         return { status: "error", message: "Telefone não informado" };
 
@@ -592,14 +591,22 @@ const controllers = () => {
 
       if (!email) return { status: "error", message: "Email não encontrado" };
 
-      // SDK NOVO
+      // -------------------------------------------
+      // 1. Inicializa Mercado Pago SDK (SDK nova)
+      // -------------------------------------------
       const client = new MercadoPagoConfig({
         accessToken: process.env.ACCESS_TOKEN,
       });
-      const customerAPI = new Customer(client);
-      const cardAPI = new Card(client);
 
-      // Buscar ou criar customer
+      // -------------------------------------------
+      // 2. Adiciona as instâncias AQUI MESMO!
+      // -------------------------------------------
+      const customerAPI = new Customer(client); // <-- AQUI
+      const cardAPI = new Card(client); // <-- AQUI
+
+      // -------------------------------------------
+      // 3. Busca ou cria CUSTOMER
+      // -------------------------------------------
       let customer = await customerAPI.search({ email });
 
       if (customer.results.length === 0) {
@@ -609,17 +616,20 @@ const controllers = () => {
         customer = customer.results[0].id;
       }
 
-      // Criar cartão
+      // -------------------------------------------
+      // 4. Salva o cartão no Mercado Pago
+      // -------------------------------------------
       const novoCartao = await cardAPI.create({
         token: token,
-        customerId: customer, // <<< ESSA É A LINHA CORRETA
+        customerId: customer, // <-- MUITO IMPORTANTE!
       });
 
-      // Validar retorno
       if (!novoCartao?.id)
         return { status: "error", message: "Falha ao salvar cartão no MP" };
 
-      // Salvar no banco
+      // -------------------------------------------
+      // 5. Salva no banco local
+      // -------------------------------------------
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
