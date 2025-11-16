@@ -112,16 +112,12 @@ const controllers = () => {
       // ------------------------------------------
       // Dados do pagador
       // ------------------------------------------
-      const payer = {
-        email:
-          dados.pedido.emailcliente ||
-          dados.pedido.email ||
-          "cliente@email.com",
-        identification: {
-          type: "CPF",
-          number: dados.pedido.cpfcliente || "00000000000",
-        },
-      };
+      const payer = dados.payer;
+
+      if (!payer || !payer.email || !payer.identification?.number) {
+        console.error("❌ Payer inválido:", payer);
+        return { status: "error", message: "Dados do titular ausentes" };
+      }
 
       // ------------------------------------------
       // Normalizar bandeiras aceitas no MP
