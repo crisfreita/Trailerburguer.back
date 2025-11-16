@@ -577,95 +577,49 @@ const controllers = () => {
   // 🔹 Salvar cartão após pagamento
   const salvarCartao = async (req) => {
     try {
-      console.log("📌 Dados recebidos salvarCartao:", req.body);
-
       const { formData, salvarCartao, telefonecliente, pedido } = req.body;
 
-      // ⛔ 1 — Cliente não escolheu salvar cartão
-      if (!salvarCartao) {
-        return {
-          status: "ignored",
-          message: "Cliente optou por não salvar cartão.",
-        };
-      }
+      if (!salvarCartao) return { status: "ignored" };
 
-      // ⛔ 2 — Sem telefone do cliente
-      if (!telefonecliente) {
-        return {
-          status: "error",
-          message: "Telefone do cliente não informado.",
-        };
-      }
+      if (!telefonecliente)
+        return { status: "error", message: "Telefone não informado" };
 
-      // ⛔ 3 — TOKEN OBRIGATÓRIO
       const token = formData?.token;
-      if (!token) {
-        console.log("❌ Token não recebido — cartão NÃO será salvo.");
-        return {
-          status: "error",
-          message: "Token do cartão não recebido.",
-        };
-      }
+      if (!token) return { status: "error", message: "Token não recebido" };
 
-      // ⛔ 4 — Email obrigatório (Brick NÃO envia!)
       const email =
         pedido?.emailcliente || pedido?.email || req.body?.email || null;
 
-      if (!email) {
-        console.log("❌ Email não encontrado — cartão NÃO será salvo.");
-        return {
-          status: "error",
-          message: "E-mail do cliente não encontrado.",
-        };
-      }
+      if (!email) return { status: "error", message: "Email não encontrado" };
 
-      console.log("📧 Email usado:", email);
+      // SDK NOVO
+      const client = new MercadoPagoConfig({
+        accessToken: process.env.ACCESS_TOKEN,
+      });
+      const customerAPI = new Customer(client);
+      const cardAPI = new Card(client);
 
-      // 🔍 5 — Buscar ou criar CUSTOMER
-      let customer = await mpCustomer.search({ email });
+      // Buscar ou criar customer
+      let customer = await customerAPI.search({ email });
 
-      if (!customer.results.length) {
-        const novo = await mpCustomer.create({ email });
+      if (customer.results.length === 0) {
+        const novo = await customerAPI.create({ email });
         customer = novo.id;
       } else {
         customer = customer.results[0].id;
       }
 
-      console.log("👤 Customer ID:", customer);
-
-      // 💳 6 — Registrar cartão no Mercado Pago
-      const novoCartao = await mpCard.create({
+      // Criar cartão
+      const novoCartao = await cardAPI.create({
         token: token,
-        customerId: customer, // ✔ CORRETO!
+        customerId: customer, // <<< ESSA É A LINHA CORRETA
       });
 
-      console.log("🔥 Retorno mpCard.create:", novoCartao);
+      // Validar retorno
+      if (!novoCartao?.id)
+        return { status: "error", message: "Falha ao salvar cartão no MP" };
 
-      // 🔒 7 — Segurança: valida retorno real do MP
-      if (!novoCartao?.id || !novoCartao?.last_four_digits) {
-        console.log(
-          "❌ Mercado Pago não retornou informações válidas do cartão!"
-        );
-        return {
-          status: "error",
-          message: "Falha ao validar cartão no Mercado Pago.",
-        };
-      }
-
-      const bandeira = novoCartao.payment_method.id;
-      const ultimos_digitos = novoCartao.last_four_digits;
-      const card_id = novoCartao.id;
-      const customer_id = customer;
-
-      // 🔥 8 — SALVAR NO BANCO (somente se TUDO estiver ok)
-      if (!card_id || !customer_id) {
-        console.log("❌ Dados incompletos — cartão NÃO será salvo no banco!");
-        return {
-          status: "error",
-          message: "Falha ao salvar cartão. Tente novamente.",
-        };
-      }
-
+      // Salvar no banco
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
@@ -673,15 +627,15 @@ const controllers = () => {
 
       await db.Query(comando, {
         telefonecliente,
-        bandeira,
-        ultimos_digitos,
-        card_id,
-        customer_id,
+        bandeira: novoCartao.payment_method.id,
+        ultimos_digitos: novoCartao.last_four_digits,
+        card_id: novoCartao.id,
+        customer_id: customer,
       });
 
       return { status: "success", message: "Cartão salvo com sucesso!" };
     } catch (err) {
-      console.error("❌ Erro ao salvar cartão:", err);
+      console.error(err);
       return { status: "error", message: err.message };
     }
   };
