@@ -83,43 +83,6 @@ const controllers = () => {
         retorno = { status: "error", message: "Método de pagamento inválido." };
       }
 
-      // ====================================
-      // 💾 SALVAR CARTÃO SE SOLICITADO
-      // ====================================
-      if (
-        dados.salvarCartao &&
-        dados.telefonecliente &&
-        dados.formData &&
-        dados.selectedPaymentMethod === "credit_card"
-      ) {
-        try {
-          console.log(
-            "💾 Salvando cartão para telefone:",
-            dados.telefonecliente
-          );
-
-          const comandoSalvar = await readCommandSql.restornaStringSql(
-            "salvarCartao",
-            "pagamento"
-          );
-
-          const bandeira = dados.formData.payment_method_id || "desconhecida";
-          const ultimos_digitos = dados.formData.card?.last_four_digits || "";
-          const idcartao_mp = dados.formData.card?.id || null;
-
-          await db.Query(comandoSalvar, {
-            telefonecliente: dados.telefonecliente,
-            bandeira,
-            ultimos_digitos,
-            idcartao_mp,
-          });
-
-          console.log("✅ Cartão salvo com sucesso!");
-        } catch (err) {
-          console.warn("⚠️ Erro ao salvar cartão:", err.message);
-        }
-      }
-
       return retorno;
     } catch (error) {
       console.log("❌ Erro pagar:", error);
@@ -134,21 +97,21 @@ const controllers = () => {
     try {
       const empresa = await ctEmpresa.controllers().obterDados();
 
-      let retorno = {};
       let paymentOrder = null;
 
-      // =============================
-      // 1️⃣ Detectar cartão salvo
-      // =============================
+      // ------------------------------------------
+      // Detectar cartão salvo corretamente
+      // ------------------------------------------
       const usandoCartaoSalvo =
         dados.cartaoSalvo &&
         dados.cartaoSalvo.card_id &&
         dados.cartaoSalvo.customer_id &&
-        dados.cartaoSalvo.card_id !== "null";
+        dados.cartaoSalvo.card_id !== "null" &&
+        dados.cartaoSalvo.customer_id !== "null";
 
-      // =============================
-      // 2️⃣ Montar payer
-      // =============================
+      // ------------------------------------------
+      // Dados do pagador
+      // ------------------------------------------
       const payer = {
         email:
           dados.pedido.emailcliente ||
@@ -160,61 +123,102 @@ const controllers = () => {
         },
       };
 
-      // =============================
-      // 3️⃣ Montar body do pagamento
-      // =============================
-      let body = {
+      // ------------------------------------------
+      // Normalizar bandeiras aceitas no MP
+      // ------------------------------------------
+      const normalizePM = (b) => {
+        if (!b) return "credit_card";
+
+        const bandeira = b.toLowerCase();
+
+        const mapa = {
+          mastercard: "master",
+          master: "master",
+          visa: "visa",
+          elo: "elo",
+          amex: "amex",
+          hipercard: "hipercard",
+          diners: "diners",
+        };
+
+        return mapa[bandeira] || "credit_card";
+      };
+
+      // ============================================================
+      // 💳 PAGAMENTO COM CARTÃO SALVO
+      // ============================================================
+      if (usandoCartaoSalvo) {
+        console.log("💳 Pagamento com cartão salvo:", dados.cartaoSalvo);
+
+        const payment_method_id = normalizePM(
+          dados.cartaoSalvo.payment_method_id
+        );
+
+        const body = {
+          transaction_amount: Number(dados.pedido.total),
+          description: `Pagamento online - ${empresa.data[0].nome}`,
+          payment_method_id,
+          installments: 1,
+          payer,
+          customer_id: dados.cartaoSalvo.customer_id,
+          card_id: dados.cartaoSalvo.card_id,
+        };
+
+        console.log("📤 Body (cartão salvo):", body);
+
+        const resultado = await payment.create({
+          body,
+          requestOptions: { idempotencyKey },
+        });
+
+        console.log("📥 Retorno MP (cartão salvo):", resultado);
+
+        paymentOrder = resultado;
+
+        await salvarPagamento(dados, paymentOrder);
+
+        return {
+          status: "success",
+          id_mp: resultado.id,
+          status_mp: resultado.status,
+        };
+      }
+
+      // ============================================================
+      // 💳 PAGAMENTO COM CARTÃO NOVO (BRICK)
+      // ============================================================
+      console.log("💳 Pagando com cartão novo:", dados.formData);
+
+      const payment_method_id = normalizePM(dados.formData.payment_method_id);
+
+      const bodyNovo = {
+        token: dados.formData.token,
         transaction_amount: Number(dados.pedido.total),
         description: `Pagamento online - ${empresa.data[0].nome}`,
-        payment_method_id:
-          dados.cartaoSalvo?.payment_method_id ||
-          dados.formData?.payment_method_id,
-        installments: 1,
+        payment_method_id,
+        installments: dados.formData.installments || 1,
+        issuer_id: dados.formData.issuer_id || null,
         payer,
       };
 
-      // ----------------------------
-      // 4️⃣ Se for cartão salvo → usar customer + card
-      // ----------------------------
-      if (usandoCartaoSalvo) {
-        console.log("💳 Usando cartão salvo:", dados.cartaoSalvo);
+      console.log("📤 Body (novo cartão):", bodyNovo);
 
-        body.token = null;
-        body.customer_id = dados.cartaoSalvo.customer_id;
-        body.card_id = dados.cartaoSalvo.card_id;
-      } else {
-        // ----------------------------
-        // 5️⃣ Se for cartão NOVO → usar token
-        // ----------------------------
-        console.log("💳 Usando cartão novo (BRICK):", dados.formData.token);
-
-        body.token = dados.formData.token;
-      }
-
-      console.log("📤 Enviando body Mercado Pago:");
-      console.log(body);
-
-      // =============================
-      // 6️⃣ Criar pagamento no Mercado Pago
-      // =============================
-      const resultado = await payment.create({
-        body,
+      const resultadoNovo = await payment.create({
+        body: bodyNovo,
         requestOptions: { idempotencyKey },
       });
 
-      console.log("📥 Retorno MP:", resultado);
+      console.log("📥 Retorno MP (cartão novo):", resultadoNovo);
 
-      paymentOrder = resultado;
-
-      retorno = {
-        status: "success",
-        id_mp: resultado.id,
-        status_mp: resultado.status,
-      };
+      paymentOrder = resultadoNovo;
 
       await salvarPagamento(dados, paymentOrder);
 
-      return retorno;
+      return {
+        status: "success",
+        id_mp: resultadoNovo.id,
+        status_mp: resultadoNovo.status,
+      };
     } catch (err) {
       console.error("❌ Erro ao pagar com cartão:", err);
       return { status: "error", message: err.message };
