@@ -581,6 +581,7 @@ const controllers = () => {
 
       const { formData, salvarCartao, telefonecliente, pedido } = req.body;
 
+      // ⛔ 1 — Cliente não escolheu salvar cartão
       if (!salvarCartao) {
         return {
           status: "ignored",
@@ -588,6 +589,7 @@ const controllers = () => {
         };
       }
 
+      // ⛔ 2 — Sem telefone do cliente
       if (!telefonecliente) {
         return {
           status: "error",
@@ -595,19 +597,22 @@ const controllers = () => {
         };
       }
 
-      // ✅ TOKEN obrigatório
+      // ⛔ 3 — TOKEN OBRIGATÓRIO
       const token = formData?.token;
       if (!token) {
-        console.log("❌ Token não recebido!");
-        return { status: "error", message: "Token do cartão não recebido." };
+        console.log("❌ Token não recebido — cartão NÃO será salvo.");
+        return {
+          status: "error",
+          message: "Token do cartão não recebido.",
+        };
       }
 
-      // ✅ Email REAL do cliente (BRICK NÃO MANDA EMAIL!)
+      // ⛔ 4 — Email obrigatório (Brick NÃO envia!)
       const email =
         pedido?.emailcliente || pedido?.email || req.body?.email || null;
 
       if (!email) {
-        console.log("❌ Email não encontrado!");
+        console.log("❌ Email não encontrado — cartão NÃO será salvo.");
         return {
           status: "error",
           message: "E-mail do cliente não encontrado.",
@@ -616,19 +621,19 @@ const controllers = () => {
 
       console.log("📧 Email usado:", email);
 
-      // ✅ Mercado Pago Customer
+      // 🔍 5 — Buscar ou criar CUSTOMER
       let customer = await mpCustomer.search({ email });
 
       if (!customer.results.length) {
-        customer = await mpCustomer.create({ email });
-        customer = customer.id;
+        const novo = await mpCustomer.create({ email });
+        customer = novo.id;
       } else {
         customer = customer.results[0].id;
       }
 
       console.log("👤 Customer ID:", customer);
 
-      // ✅ Criar cartão salvo no Mercado Pago
+      // 💳 6 — Registrar cartão no Mercado Pago
       const novoCartao = await mpCard.create({
         token,
         customer_id: customer,
@@ -636,12 +641,31 @@ const controllers = () => {
 
       console.log("🔥 Retorno mpCard.create:", novoCartao);
 
+      // 🔒 7 — Segurança: valida retorno real do MP
+      if (!novoCartao?.id || !novoCartao?.last_four_digits) {
+        console.log(
+          "❌ Mercado Pago não retornou informações válidas do cartão!"
+        );
+        return {
+          status: "error",
+          message: "Falha ao validar cartão no Mercado Pago.",
+        };
+      }
+
       const bandeira = novoCartao.payment_method.id;
       const ultimos_digitos = novoCartao.last_four_digits;
       const card_id = novoCartao.id;
       const customer_id = customer;
 
-      // ✅ Salvar no banco
+      // 🔥 8 — SALVAR NO BANCO (somente se TUDO estiver ok)
+      if (!card_id || !customer_id) {
+        console.log("❌ Dados incompletos — cartão NÃO será salvo no banco!");
+        return {
+          status: "error",
+          message: "Falha ao salvar cartão. Tente novamente.",
+        };
+      }
+
       const comando = await readCommandSql.restornaStringSql(
         "salvarCartao",
         "pagamento"
